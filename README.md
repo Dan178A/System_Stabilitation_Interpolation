@@ -122,3 +122,17 @@ Video credits are available in `videos/credits.txt`.Merge pull request #8 from h
 
 Bump tqdm from 4.56.1 to 4.66.3
 
+Bump tqdm from 4.56.1 to 4.66.3
+
+Bumps [tqdm](https://github.com/tqdm/tqdm) from 4.56.1 to 4.66.3.
+- [Release notes](https://github.com/tqdm/tqdm/releases)
+- [Commits](https://github.com/tqdm/tqdm/compare/v4.56.1...v4.66.3)
+
+---
+updated-dependencies:
+- dependency-name: tqdm
+  dependency-type: direct:production
+...
+
+Signed-off-by: dependabot[bot] <support@github.com>
+
