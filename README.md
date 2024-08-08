@@ -142,3 +142,7 @@ Fix issues with the translation element identified by @Nyquist1101 in #6
 
 Update demo videos
 
+Fix translation element
+
+Per https://github.com/how4rd/meshflow/issues/6
+
