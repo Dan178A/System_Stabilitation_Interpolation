@@ -146,3 +146,7 @@ Fix translation element
 
 Per https://github.com/how4rd/meshflow/issues/6
 
+Merge pull request #1 from how4rd/dependabot/pip/numpy-1.22.0
+
+Bump numpy from 1.20.1 to 1.22.0
+
