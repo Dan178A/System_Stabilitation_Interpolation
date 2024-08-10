@@ -1,0 +1,73 @@
+<head>
+    <meta charset="utf-8">
+    <title>Piedra, papel o tijera </title>
+    <script>
+
+        // 1  es piedra , 2 es papel, 3  es tijera;
+
+        let JUGADOR = "0";
+        let pc = "1";
+        let seleccion = "";
+
+        JUGADOR = prompt("Elije: 1 para piedra, 2 para papel, 3 para tijera");
+        // alert ("Elegistes " + JUGADOR);
+
+        // ELIJE JUGADOR.
+
+        if (JUGADOR == 1){
+            alert ("Elegistes ✊");
+        } else if (JUGADOR == 2){
+            alert ("Elegistes ✋");
+        }
+        else if(JUGADOR == 3){
+            alert ("Elegistes ✌");
+        }
+        else{
+
+            alert ("NO ES NINGUNA DE LAS OPCIONES ❌");
+        }
+
+        // ELIJE MAQUINA.
+
+        if (pc == 1){
+            alert ("PC elije ✊");
+        } else if (pc == 2){
+            alert ("PC elije ✋");
+        }
+        else if(pc == 3){
+            alert ("PC elije ✌");
+        }
+
+        // COMBATE
+
+        switch (true){
+
+            
+            case (pc == JUGADOR): alert("EMPATE");
+            break;
+
+            case (JUGADOR == 1 && pc == 3): alert("GANASTE🏆");
+            break;
+
+            case (JUGADOR ==2 && pc == 1): alert("GANASTE🏆");
+            break;
+
+            case (JUGADOR ==3 && pc ==2): alert("GANASTE🏆");
+            break;
+
+            default: alert("PERDISTES ❌");
+            break;
+            
+        }
+
+
+
+
+    </script>
+
+    <body>
+        <h2>Piedra, Papel o tijera </h2>
+    </body>
+
+</head>
+</html>

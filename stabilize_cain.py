@@ -1,4 +1,5 @@
 import numpy as np
+from numpy import ndarray as NDArray
 import cv2
 import argparse
 import os
@@ -17,7 +18,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def save_video(frames, path):
+def save_video(frames: NDArray, path: str):
     frame_count, h, w, _ = frames.shape
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out = cv2.VideoWriter(path, fourcc, 30.0, (w, h))
@@ -26,7 +27,7 @@ def save_video(frames, path):
     out.release()
 
 
-def stabilize(in_path, out_path):
+def stabilize(in_path: str, out_path: str):
 
     if not os.path.exists(in_path):
         print(f"The input file '{in_path}' does not exist.")
@@ -113,6 +114,6 @@ if __name__ == '__main__':
     state_dict = torch.load('./ckpts/ResNet/resnet_5.pth',
                             map_location=device, weights_only=True)
     resnet.load_state_dict(state_dict['model'])
-    unstable_video_path = './test.mp4'
-    stabilized_video_path = './stabilized.mp4'
+    unstable_video_path = './VID_20240804_153351.mp4'
+    stabilized_video_path = './stabilizedv2.mp4'
     stabilize(unstable_video_path, stabilized_video_path)
