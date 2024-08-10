@@ -150,3 +150,18 @@ Merge pull request #1 from how4rd/dependabot/pip/numpy-1.22.0
 
 Bump numpy from 1.20.1 to 1.22.0
 
+Bump numpy from 1.20.1 to 1.22.0
+
+Bumps [numpy](https://github.com/numpy/numpy) from 1.20.1 to 1.22.0.
+- [Release notes](https://github.com/numpy/numpy/releases)
+- [Changelog](https://github.com/numpy/numpy/blob/main/doc/RELEASE_WALKTHROUGH.rst)
+- [Commits](https://github.com/numpy/numpy/compare/v1.20.1...v1.22.0)
+
+---
+updated-dependencies:
+- dependency-name: numpy
+  dependency-type: direct:production
+...
+
+Signed-off-by: dependabot[bot] <support@github.com>
+
