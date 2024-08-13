@@ -169,3 +169,5 @@ Add README, requirements.txt
 
 Add argument for displaying video loop
 
+Remove unused optimization formula option
+
