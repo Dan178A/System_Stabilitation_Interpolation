@@ -173,3 +173,5 @@ Remove unused optimization formula option
 
 Update file structure
 
+Detect features using subframes, rename variables
+
