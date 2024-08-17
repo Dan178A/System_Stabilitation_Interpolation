@@ -177,3 +177,5 @@ Detect features using subframes, rename variables
 
 Detect features only once
 
+Clean up
+
