@@ -179,3 +179,5 @@ Detect features only once
 
 Clean up
 
+Add optimization options
+
