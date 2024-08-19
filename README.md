@@ -181,3 +181,5 @@ Clean up
 
 Add optimization options
 
+Fix stability score
+
