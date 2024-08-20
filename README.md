@@ -183,3 +183,5 @@ Add optimization options
 
 Fix stability score
 
+Add progress bar for cropping ratio and distortion score
+
