@@ -187,3 +187,5 @@ Add progress bar for cropping ratio and distortion score
 
 Compute stabilization quality metrics
 
+Update video paths
+
