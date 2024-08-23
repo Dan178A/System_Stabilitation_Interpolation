@@ -189,3 +189,5 @@ Compute stabilization quality metrics
 
 Update video paths
 
+Crop frames
+
