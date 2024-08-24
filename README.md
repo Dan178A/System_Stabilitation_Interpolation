@@ -191,3 +191,5 @@ Update video paths
 
 Crop frames
 
+Move repeated calls outside for loop
+
