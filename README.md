@@ -193,3 +193,5 @@ Crop frames
 
 Move repeated calls outside for loop
 
+Add videos from original paper
+
