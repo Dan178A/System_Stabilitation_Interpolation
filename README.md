@@ -195,3 +195,5 @@ Move repeated calls outside for loop
 
 Add videos from original paper
 
+Update progress bar description, remove TODOs
+
