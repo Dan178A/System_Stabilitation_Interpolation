@@ -197,3 +197,7 @@ Add videos from original paper
 
 Update progress bar description, remove TODOs
 
+Change pattern for grabbing image dims
+
+This way does not assume images are 3D
+
