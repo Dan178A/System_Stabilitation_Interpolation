@@ -201,3 +201,5 @@ Change pattern for grabbing image dims
 
 This way does not assume images are 3D
 
+Write stabilized video to file
+
