@@ -203,3 +203,5 @@ This way does not assume images are 3D
 
 Write stabilized video to file
 
+Refactor, add progress bars
+
