@@ -205,3 +205,5 @@ Write stabilized video to file
 
 Refactor, add progress bars
 
+Fix double sign flip, use lambda from paper
+
