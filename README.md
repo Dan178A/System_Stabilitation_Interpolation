@@ -207,3 +207,5 @@ Refactor, add progress bars
 
 Fix double sign flip, use lambda from paper
 
+Debug, visualize output
+
