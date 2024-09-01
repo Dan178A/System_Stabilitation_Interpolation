@@ -209,3 +209,5 @@ Fix double sign flip, use lambda from paper
 
 Debug, visualize output
 
+Apply homography before MeshFlow calculation
+
