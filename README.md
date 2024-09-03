@@ -213,3 +213,5 @@ Apply homography before MeshFlow calculation
 
 Fix vertex indexing, clean
 
+Clean up, change final visualization
+
