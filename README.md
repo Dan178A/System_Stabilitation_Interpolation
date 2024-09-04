@@ -215,3 +215,5 @@ Fix vertex indexing, clean
 
 Clean up, change final visualization
 
+Warp frames to stabilize video
+
