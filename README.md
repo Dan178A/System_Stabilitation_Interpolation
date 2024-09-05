@@ -217,3 +217,5 @@ Clean up, change final visualization
 
 Warp frames to stabilize video
 
+Remove Frame class, clean
+
