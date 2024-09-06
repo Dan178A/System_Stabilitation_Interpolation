@@ -219,3 +219,5 @@ Warp frames to stabilize video
 
 Remove Frame class, clean
 
+Update docstrings
+
