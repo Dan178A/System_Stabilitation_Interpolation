@@ -221,3 +221,5 @@ Remove Frame class, clean
 
 Update docstrings
 
+Run Jacobi method on unstabilized displacements
+
