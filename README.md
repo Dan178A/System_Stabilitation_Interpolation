@@ -223,3 +223,5 @@ Update docstrings
 
 Run Jacobi method on unstabilized displacements
 
+Store vertex profiles, rename nodes to vertices
+
