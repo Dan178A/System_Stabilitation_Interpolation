@@ -231,3 +231,5 @@ Calculate residual velocities based on homography
 
 Store all frames (do not use ring buffer)
 
+Refactor
+
