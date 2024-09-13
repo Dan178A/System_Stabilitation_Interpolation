@@ -233,3 +233,5 @@ Store all frames (do not use ring buffer)
 
 Refactor
 
+Perform second median filter on node velocities
+
