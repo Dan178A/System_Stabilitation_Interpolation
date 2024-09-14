@@ -235,3 +235,7 @@ Refactor
 
 Perform second median filter on node velocities
 
+Compute median x and y velocities independently
+
+Per the original paper's implementation
+
