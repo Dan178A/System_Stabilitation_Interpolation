@@ -239,3 +239,7 @@ Compute median x and y velocities independently
 
 Per the original paper's implementation
 
+Fix ellipse bounding error
+
+Prevent array indexing error from trying to draw an ellipse past the right edge of the image
+
