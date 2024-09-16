@@ -243,3 +243,5 @@ Fix ellipse bounding error
 
 Prevent array indexing error from trying to draw an ellipse past the right edge of the image
 
+Perform first median filter on node velocities
+
