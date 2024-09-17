@@ -245,3 +245,5 @@ Prevent array indexing error from trying to draw an ellipse past the right edge 
 
 Perform first median filter on node velocities
 
+Apply features' velocities to nearby mesh nodes
+
