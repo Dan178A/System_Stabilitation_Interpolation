@@ -247,3 +247,5 @@ Perform first median filter on node velocities
 
 Apply features' velocities to nearby mesh nodes
 
+Rename constants, fix window indexing issue
+
