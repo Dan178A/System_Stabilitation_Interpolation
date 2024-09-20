@@ -251,3 +251,5 @@ Rename constants, fix window indexing issue
 
 Change _bw suffix to _gray
 
+Compute feature velocities
+
