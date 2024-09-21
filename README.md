@@ -253,3 +253,5 @@ Change _bw suffix to _gray
 
 Compute feature velocities
 
+Store Frames in buffer
+
