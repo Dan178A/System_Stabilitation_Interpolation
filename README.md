@@ -255,3 +255,5 @@ Compute feature velocities
 
 Store Frames in buffer
 
+Scaffold Frame motion estimation
+
