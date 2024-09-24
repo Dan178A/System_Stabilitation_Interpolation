@@ -259,3 +259,5 @@ Scaffold Frame motion estimation
 
 Read in and play video
 
+Fix problems of memory, test, etc.
+
