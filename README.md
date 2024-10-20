@@ -1,20 +1,19 @@
-# MeshFlow
+# System_Stabilitation_Interpolation
 
-MeshFlow is a video stabilization algorithm described in the 2016 paper
-[MeshFlow: Minimum Latency Online Video Stabilization](http://www.liushuaicheng.org/eccv2016/meshflow.pdf)
-by S. Liu et al. This Python implementation of MeshFlow stabilizes video offline (after recording).
+Stabilization system for mobile devices using interpolation
 
-At a high level, MeshFlow stabilizes a video in four steps.
 
-1) MeshFlow estimates the unstabilized video's motion by placing a mesh over it and
+At a high level, stabilizes a video in four steps.
+
+1) estimates the unstabilized video's motion by placing a mesh over it and
 tracking how each mesh vertex moves. Each vertex moves with its nearby features.
-2) MeshFlow computes how each mesh vertex should move in the stabilized video by
+2) computes how each mesh vertex should move in the stabilized video by
 minimizing an energy function.
-3) MeshFlow stabilizes the video by warping it so that each mesh vertex follows its stabilized
+3) stabilizes the video by warping it so that each mesh vertex follows its stabilized
 motion.
-4) MeshFlow crops and resizes the video to fit its initial dimensions.
+4) crops and resizes the video to fit its initial dimensions.
 
-Because MeshFlow works with sparse mesh vertex motions instead of dense pixel motions,
+Because works with sparse mesh vertex motions instead of dense pixel motions,
 the algorithm is relatively computationally cheap. Note that this implementation was built for
 experimentation and is not optimized for speed.
 
@@ -118,194 +117,4 @@ Demo videos are available in the `videos` directory. Each subdirectory contains 
 an unstabilized video, and four stabilized versions stabilized by the four MeshFlow variants
 described above.
 
-Video credits are available in `videos/credits.txt`.Merge pull request #8 from how4rd/dependabot/pip/tqdm-4.66.3
-
-Bump tqdm from 4.56.1 to 4.66.3
-
-Bump tqdm from 4.56.1 to 4.66.3
-
-Bumps [tqdm](https://github.com/tqdm/tqdm) from 4.56.1 to 4.66.3.
-- [Release notes](https://github.com/tqdm/tqdm/releases)
-- [Commits](https://github.com/tqdm/tqdm/compare/v4.56.1...v4.66.3)
-
----
-updated-dependencies:
-- dependency-name: tqdm
-  dependency-type: direct:production
-...
-
-Signed-off-by: dependabot[bot] <support@github.com>
-
-Merge pull request #7 from how4rd/translational-element-fix
-
-Fix issues with the translation element identified by @Nyquist1101 in #6
-
-Update demo videos
-
-Fix translation element
-
-Per https://github.com/how4rd/meshflow/issues/6
-
-Merge pull request #1 from how4rd/dependabot/pip/numpy-1.22.0
-
-Bump numpy from 1.20.1 to 1.22.0
-
-Bump numpy from 1.20.1 to 1.22.0
-
-Bumps [numpy](https://github.com/numpy/numpy) from 1.20.1 to 1.22.0.
-- [Release notes](https://github.com/numpy/numpy/releases)
-- [Changelog](https://github.com/numpy/numpy/blob/main/doc/RELEASE_WALKTHROUGH.rst)
-- [Commits](https://github.com/numpy/numpy/compare/v1.20.1...v1.22.0)
-
----
-updated-dependencies:
-- dependency-name: numpy
-  dependency-type: direct:production
-...
-
-Signed-off-by: dependabot[bot] <support@github.com>
-
-Add README, requirements.txt
-
-Add argument for displaying video loop
-
-Remove unused optimization formula option
-
-Update file structure
-
-Detect features using subframes, rename variables
-
-Detect features only once
-
-Clean up
-
-Add optimization options
-
-Fix stability score
-
-Add progress bar for cropping ratio and distortion score
-
-Compute stabilization quality metrics
-
-Update video paths
-
-Crop frames
-
-Move repeated calls outside for loop
-
-Add videos from original paper
-
-Update progress bar description, remove TODOs
-
-Change pattern for grabbing image dims
-
-This way does not assume images are 3D
-
-Write stabilized video to file
-
-Refactor, add progress bars
-
-Fix double sign flip, use lambda from paper
-
-Debug, visualize output
-
-Apply homography before MeshFlow calculation
-
-Fix vertex indexing, clean
-
-Clean up, change final visualization
-
-Warp frames to stabilize video
-
-Remove Frame class, clean
-
-Update docstrings
-
-Run Jacobi method on unstabilized displacements
-
-Store vertex profiles, rename nodes to vertices
-
-Remove unused play_video function
-
-Calculate residual velocities based on homography
-
-Store all frames (do not use ring buffer)
-
-Refactor
-
-Perform second median filter on node velocities
-
-Compute median x and y velocities independently
-
-Per the original paper's implementation
-
-Fix ellipse bounding error
-
-Prevent array indexing error from trying to draw an ellipse past the right edge of the image
-
-Perform first median filter on node velocities
-
-Apply features' velocities to nearby mesh nodes
-
-Rename constants, fix window indexing issue
-
-Change _bw suffix to _gray
-
-Compute feature velocities
-
-Store Frames in buffer
-
-Scaffold Frame motion estimation
-
-Read in and play video
-
-Fix problems of memory, test, etc.
-
-Fix problems of memory, test, etc.
-
-Fix problems of memory, test, etc.
-
-Fix problems of memory, test, etc.
-
-Fix problems of memory, test, etc.
-
-Fix problems of memory, test, etc.
-
-Fix problems of memory, test, etc.
-
-Fix problems of memory, test, etc.
-
-Fix problems of memory, test, etc.
-
-Fix problems of memory, test, etc.
-
-Fix problems of memory, test, etc.
-
-Fix problems of memory, test, etc.
-
-Fix problems of memory, test, etc.
-
-Fix problems of memory, test, etc.
-
-Fix problems of memory, test, etc.
-
-Fix problems of memory, test, etc.
-
-Fix problems of memory, test, etc.
-
-Fix problems of memory, test, etc.
-
-Fix problems of memory, test, etc.
-
-Fix problems of memory, test, etc.
-
-Fix problems of memory, test, etc.
-
-Fix problems of memory, test, etc.
-
-Fix problems of memory, test, etc.
-
-Fix problems of memory, test, etc.
-
-Fix problems of memory, test, etc.
-
+Video credits are available in `videos/credits.txt`.
