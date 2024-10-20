@@ -28,7 +28,7 @@ class Stabilizer:
     ADAPTIVE_WEIGHTS_DEFINITION_CONSTANT_LOW = 3
 
 
-    # The adaptive weights' constant high and low values.
+    # Los valores constantes de los pesos adaptativos altos y bajos.
     ADAPTIVE_WEIGHTS_DEFINITION_CONSTANT_HIGH_VALUE = 100
     ADAPTIVE_WEIGHTS_DEFINITION_CONSTANT_LOW_VALUE = 1
 
@@ -304,28 +304,32 @@ class Stabilizer:
             between early_frame and late_frame.
         '''
 
-        # applying this homography to a coordinate in the early frame maps it to where it will be
-        # in the late frame, assuming the point is not undergoing motion
+        # aplicar esta homografía a una coordenada en el marco temprano mapea a donde estará
+        # En el marco tardío, suponiendo que el punto no se someta a movimiento
         early_features, late_features, early_to_late_homography = self._get_matched_features_and_homography(early_frame, late_frame)
 
-        # Each vertex started in the early frame at a position given by vertex_x_y_by_row_coland.
-        # If it has no velocity relative to the scene (i.e., the vertex is shaking with it), then to
-        # get its position in the late frame, we apply early_to_late_homography to its early
-        # position.
-        # The displacement between these positions is its global motion.
+        # Cada vértice comenzó en el cuadro temprano en una posición dada por Vértex_X_Y_BY_ROW_COLAND.
+        # Si no tiene velocidad en relación con la escena (es decir, el vértice está temblando con él), entonces a
+        # Obtenga su posición en el marco tardío, aplicamos a los primeros
+        # posición.
+        # El desplazamiento entre estas posiciones es su movimiento global.
         frame_height, frame_width, = early_frame.shape[:2]
         vertex_x_y = self._get_vertex_x_y(frame_width, frame_height)
+        #AplicarUnaTransformaciónDePerspectivaALasCoordenadasDeLosVértices
+        #UtilizandoLaMatrizDeHomografíaEarlyToLateHomography
+        #Luego,CalcularLasVelocidadesGlobalesDeLosVérticesRestandoLasCoordenadas
+        #OriginalesDeLasCoordenadasTransformadas
         vertex_global_velocities = cv2.perspectiveTransform(vertex_x_y, early_to_late_homography) - vertex_x_y
         vertex_global_velocities_by_row_col = np.reshape(vertex_global_velocities, (self.mesh_row_count + 1, self.mesh_col_count + 1, 2))
         vertex_global_x_velocities_by_row_col = vertex_global_velocities_by_row_col[:, :, 0]
         vertex_global_y_velocities_by_row_col = vertex_global_velocities_by_row_col[:, :, 1]
 
-        # In addition to the above motion (which moves each vertex to its spot in the mesh in
-        # late_frame), each vertex may undergo additional residual motion to match its nearby
-        # features.
-        # After gathering these velocities, perform first median filter:
-        # sort each vertex's velocities by x-component, then by y-component, and use the median
-        # element as the vertex's velocity.
+        # Además del movimiento anterior (que mueve cada vértice a su lugar en la malla en
+        # Late_frame), cada vértice puede sufrir un movimiento residual adicional para que coincida con su cercano
+        # características.
+        # Después de reunir estas velocidades, realice el primer filtro mediano:
+        # Ordene las velocidades de cada vértice por componente X, luego por componente Y, y use la mediana
+        # elemento como la velocidad del vértice.
         vertex_nearby_feature_residual_x_velocities_by_row_col, vertex_nearby_feature_residual_y_velocities_by_row_col = self._get_vertex_nearby_feature_residual_velocities(frame_width, frame_height, early_features, late_features, early_to_late_homography)
 
         vertex_residual_x_velocities_by_row_col = np.array([
@@ -347,8 +351,8 @@ class Stabilizer:
         vertex_x_velocities_by_row_col = (vertex_global_x_velocities_by_row_col + vertex_residual_x_velocities_by_row_col).astype(np.float32)
         vertex_y_velocities_by_row_col = (vertex_global_y_velocities_by_row_col + vertex_residual_y_velocities_by_row_col).astype(np.float32)
 
-        # Perform second median filter:
-        # replace each vertex's velocity with the median velocity of its neighbors.
+        # Realizar el segundo filtro mediano:
+        # Reemplace la velocidad de cada vértice con la velocidad media de sus vecinos.
         vertex_smoothed_x_velocities_by_row_col = cv2.medianBlur(vertex_x_velocities_by_row_col, 3)
         vertex_smoothed_y_velocities_by_row_col = cv2.medianBlur(vertex_y_velocities_by_row_col, 3)
         vertex_smoothed_velocities_by_row_col = np.dstack((vertex_smoothed_x_velocities_by_row_col, vertex_smoothed_y_velocities_by_row_col))
@@ -403,37 +407,37 @@ class Stabilizer:
         ]
 
         if early_features is not None:
-            # calculate features' velocities; see https://stackoverflow.com/a/44409124 for
-            # combining the positions and velocities into one matrix
+            # Calcule las velocidades de las características;Ver https://stackoverflow.com/a/44409124 para
+            # Combinar las posiciones y velocidades en una matriz
 
-            # If a point were undergoing no motion, then its position in the late frame would be
-            # found by applying early_to_late_homography to its position in the early frame.
-            # The point's additional motion is what takes it from that position to its actual
-            # position.
+            # Si un punto no hubiera sufrido movimiento, entonces su posición en el marco tardío sería
+            # Se encuentra aplicando Early_TO_Late_Homography a su posición en el cuadro temprano.
+            # El movimiento adicional del punto es lo que lo lleva de esa posición a su
+            # posición.
             feature_residual_velocities = late_features - cv2.perspectiveTransform(early_features, early_to_late_homography)
             feature_positions_and_residual_velocities = np.c_[early_features, feature_residual_velocities]
 
-            # apply features' velocities to nearby mesh vertices
+            # Aplicar las velocidades de las características a los vértices de malla cercana
             for feature_position_and_residual_velocity in feature_positions_and_residual_velocities:
                 feature_x, feature_y, feature_residual_x_velocity, feature_residual_y_velocity = feature_position_and_residual_velocity[0]
                 feature_row = (feature_y / frame_height) * self.mesh_row_count
                 feature_col = (feature_x / frame_width) * self.mesh_col_count
 
-                # Draw an ellipse around each feature
-                # of width self.feature_ellipse_col_count
-                # and height self.feature_ellipse_row_count,
-                # and apply the feature's velocity to all mesh vertices that fall within this
-                # ellipse.
-                # To do this, we can iterate through all the rows that the ellipse covers.
-                # For each row, we can use the equation for an ellipse centered on the
-                # feature to determine which columns the ellipse covers. The resulting
-                # (row, column) pairs correspond to the vertices in the ellipse.
+                # Dibuja una elipse alrededor de cada característica
+                # de ancho self.feature_ellipse_col_count
+                # y altura self.feature_ellipse_row_count,
+                # y aplique la velocidad de la función a todos los vértices de malla que caen dentro de este
+                # Ellipse.
+                # Para hacer esto, podemos iterar a través de todas las filas que cubre la Elipse.
+                # Para cada fila, podemos usar la ecuación para una elipse centrada en el
+                # característica para determinar qué columnas cubre las elipse.El resultante
+                #(fila, columna) Los pares corresponden a los vértices en la elipse.
                 ellipse_top_row_inclusive = max(0, math.ceil(feature_row - self.feature_ellipse_row_count / 2))
                 ellipse_bottom_row_exclusive = 1 + min(self.mesh_row_count, math.floor(feature_row + self.feature_ellipse_row_count / 2))
 
                 for vertex_row in range(ellipse_top_row_inclusive, ellipse_bottom_row_exclusive):
 
-                    # half-width derived from ellipse equation
+                    # medio ancho derivado de la ecuación de elipse
                     ellipse_slice_half_width = self.feature_ellipse_col_count * math.sqrt((1/4) - ((vertex_row - feature_row) / self.feature_ellipse_row_count) ** 2)
                     ellipse_left_col_inclusive = max(0, math.ceil(feature_col - ellipse_slice_half_width))
                     ellipse_right_col_exclusive = 1 + min(self.mesh_col_count, math.floor(feature_col + ellipse_slice_half_width))
@@ -480,19 +484,19 @@ class Stabilizer:
             early_to_late_homography is None.
         '''
 
-        # get features that have had outliers removed by applying homographies to sub-frames
+        # Obtenga características que se han eliminado los valores atípicos aplicando homografías a los subframas
 
         frame_height, frame_width = early_frame.shape[:2]
         subframe_width = math.ceil(frame_width / self.mesh_outlier_subframe_col_count)
         subframe_height = math.ceil(frame_height / self.mesh_outlier_subframe_row_count)
 
-        # early_features_by_subframe[i] contains a CV_32FC2 array of the early features in the
-        # frame's i^th subframe;
-        # late_features_by_subframe[i] is defined similarly
+        # Early_Feature_By_Subframe [i] contiene una matriz CV_32FC2 de las características tempranas en el
+        # marco i^th subtrame;
+        # late_features_by_subframe [i] se define de manera similar
         early_features_by_subframe = []
         late_features_by_subframe = []
 
-        # TODO parallelize
+        # Todos paralelizan
         for subframe_left_x in range(0, frame_width, subframe_width):
             for subframe_top_y in range(0, frame_height, subframe_height):
                 early_subframe = early_frame[subframe_top_y:subframe_top_y+subframe_height,
@@ -553,12 +557,12 @@ class Stabilizer:
             late_features is None.
         '''
 
-        # gather all features that track between frames
+        # Reúna todas las características que rastrean entre marcos
         early_features_including_outliers, late_features_including_outliers = self._get_all_matched_features_between_subframes(early_subframe, late_subframe)
         if early_features_including_outliers is None:
             return (None, None)
 
-        # eliminate outlying features using RANSAC
+        # Eliminar características periféricas con Ransac
         _, outlier_features = cv2.findHomography(
             early_features_including_outliers, late_features_including_outliers, method=cv2.RANSAC
         )
@@ -566,8 +570,8 @@ class Stabilizer:
         early_features = early_features_including_outliers[outlier_features_mask]
         late_features = late_features_including_outliers[outlier_features_mask]
 
-        # Add a constant offset to feature coordinates to express them
-        # relative to the original frame's top left corner, not the subframe's
+        # Agregue un desplazamiento constante para presentar coordenadas para expresarlas
+        # en relación con la esquina superior izquierda del marco original, no la subtrama
         return (early_features + subframe_offset, late_features + subframe_offset)
 
 
@@ -601,8 +605,8 @@ class Stabilizer:
             late_features is None.
         '''
 
-        # convert a KeyPoint list into a CV_32FC2 array containing the coordinates of each KeyPoint;
-        # see https://stackoverflow.com/a/55398871 and https://stackoverflow.com/a/47617999
+        # Convierta una lista de punto clave en una matriz CV_32FC2 que contenga las coordenadas de cada punto clave;
+        # Consulte https://stackoverflow.com/a/55398871 y https://stackoverflow.com/a/47617999
         early_keypoints = self.feature_detector.detect(early_subframe)
         if len(early_keypoints) < self.homography_min_number_corresponding_features:
             return (None, None)
@@ -673,16 +677,16 @@ class Stabilizer:
 
         off_diagonal_coefficients, on_diagonal_coefficients = self._get_jacobi_method_input(num_frames, frame_width, frame_height, adaptive_weights_definition, homographies)
 
-        # vertex_unstabilized_displacements_by_frame_index is indexed by
-        # frame_index, then row, then col, then velocity component.
-        # Instead, vertex_unstabilized_displacements_by_coord is indexed by
-        # row, then col, then frame_index, then velocity component;
-        # this rearrangement should allow for faster access during the optimization step.
+        # vértex_unstabilized_dispplacements_by_frame_index está indexado por
+        # frame_index, luego fila, luego col, luego componente de velocidad.
+        # En su lugar, vertex_unstabilized_dispplacements_by_coord está indexado por
+        # fila, luego col, luego frame_index, luego componente de velocidad;
+        # Este reordenamiento debe permitir un acceso más rápido durante el paso de optimización.
         vertex_unstabilized_displacements_by_coord = np.moveaxis(
             vertex_unstabilized_displacements_by_frame_index, 0, 2
         )
         vertex_stabilized_displacements_by_coord = np.empty(vertex_unstabilized_displacements_by_coord.shape)
-        # TODO parallelize
+        # Todos paralelizan
         with tqdm.trange((self.mesh_row_count + 1) * (self.mesh_col_count + 1)) as t:
             t.set_description('Computing stabilized mesh displacements')
             for mesh_coords_flattened in t:
@@ -734,40 +738,40 @@ class Stabilizer:
             Specifically, on_diagonal_coefficients[i] = A_{i, i}.
         '''
 
-        # row_indexes[row][col] = row, col_indexes[row][col] = col
+        # row_indexes [fila] [col] = row, col_indexes [fila] [col] = col
         row_indexes, col_indexes = np.indices((num_frames, num_frames))
 
-        # regularization_weights[t, r] is a weight constant applied to the regularization term.
-        # In the paper, regularization_weights[t, r] is denoted as w_{t,r}.
-        # NOTE that regularization_weights[i, i] = 0.
+        # regularización_palos [t, r] es una constante de peso aplicada al término de regularización.
+        # En el artículo, regularización_palos [t, r] se denota como w_ {t, r}.
+        # Tenga en cuenta que regularization_weights [i, i] = 0.
         regularization_weights = np.exp(
             -np.square((3 / self.temporal_smoothing_radius) * (row_indexes - col_indexes))
         )
 
-        # adaptive_weights[t] is a weight, derived from properties of the frames, applied to the
-        # regularization term corresponding to the frame at index t
-        # Note that the paper does not specify the weight to apply to the last frame (which does not
-        # have a velocity), so we assume it is the same as the second-to-last frame.
-        # In the paper, adaptive_weights[t] is denoted as \lambda_{t}.
+        # adaptive_weights [t] es un peso, derivado de las propiedades de los marcos, aplicados a
+        # Término de regularización correspondiente al marco en el índice t
+        # Tenga en cuenta que el documento no especifica el peso para aplicarse al último cuadro (que no
+        # Tener una velocidad), por lo que asumimos que es lo mismo que el segundo a los marco.
+        # En el documento, adaptive_weights [t] se denota como \ lambda_ {t}.
         adaptive_weights = self._get_adaptive_weights(num_frames, frame_width, frame_height, adaptive_weights_definition, homographies)
-        # adaptive_weights = np.full((num_frames,), 10)
+        # adaptive_weights = np.full ((num_frames,), 10)
 
-        # combined_adaptive_regularization_weights[t, r] = \lambda_{t} w_{t, r}
+        # combined_adaptive_regularization_weaks [t, r] = \ lambda_ {t} w_ {t, r}
         combined_adaptive_regularization_weights = np.matmul(np.diag(adaptive_weights), regularization_weights)
 
-        # the off-diagonal entry at cell [t, r] is written as
-        # -2 * \lambda_{t} w_{t, r}
+        # La entrada fuera de diagonal en Cell [T, R] está escrita como
+        #-2 * \ lambda_ {t} w_ {t, r}
         off_diagonal_coefficients = -2 * combined_adaptive_regularization_weights
 
-        # the on-diagonal entry at cell [t, t] is written as
-        # 1 + 2 * \sum_{r \in \Omega_{t}, r \neq t} \lambda_{t} w_{t, r}.
-        # NOTE Since w_{t, t} = 0,
-        # we can ignore the r \neq t constraint on the sum and write the on-diagonal entry at
-        # cell [t, t] as
-        # 1 + 2 * \sum{r \in \Omega_{t}} \lambda_{t} w_{t, r}.
+        # La entrada en diagonal en la celda [t, t] está escrita como
+        # 1 + 2 * \ sum_ {r \ in \ omega_ {t}, r \ neq t} \ lambda_ {t} w_ {t, r}.
+        # Nota ya que w_ {t, t} = 0,
+        # Podemos ignorar la restricción r \ neq t en la suma y escribir la entrada en diagonal en
+        # celda [t, t] como
+        # 1 + 2 * \ sum {r \ in \ omega_ {t}} \ lambda_ {t} w_ {t, r}.
         on_diagonal_coefficients = 1 + 2 * np.sum(combined_adaptive_regularization_weights, axis=1)
 
-        # set coefficients to 0 for appropriate t, r; see https://stackoverflow.com/a/36247680
+        # Establezca coeficientes en 0 para T, r, r;Ver https://stackoverflow.com/a/36247680
         off_diagonal_mask = np.zeros(off_diagonal_coefficients.shape)
         for i in range(-self.temporal_smoothing_radius, self.temporal_smoothing_radius + 1):
             off_diagonal_mask += np.diag(np.ones(num_frames - abs(i)), i)
@@ -803,8 +807,8 @@ class Stabilizer:
         '''
 
         if adaptive_weights_definition == Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_ORIGINAL or adaptive_weights_definition == Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_FLIPPED:
-            # the adaptive weights are determined by plugging the eigenvalues of each homography's
-            # affine component into a linear model
+            # Los pesos adaptativos se determinan conectando los valores propios de cada homografía
+            # componente afín en un modelo lineal
             homography_affine_components = homographies.copy()
             homography_affine_components[:, 2, :] = [0, 0, 1]
             adaptive_weights = np.empty((num_frames,))
@@ -820,7 +824,7 @@ class Stabilizer:
 
                 if adaptive_weights_definition == Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_ORIGINAL:
                     adaptive_weight_candidate_2 = 5.83 * affine_component + 4.88
-                else:  # ADAPTIVE_WEIGHTS_DEFINITION_FLIPPED
+                else:  # Adaptive_weaws_definition_flipped
                     adaptive_weight_candidate_2 = 5.83 * affine_component - 4.88
 
                 adaptive_weights[frame_index] = max(
@@ -931,54 +935,54 @@ class Stabilizer:
 
         frame_height, frame_width = unstabilized_frames[0].shape[:2]
 
-        # unstabilized_vertex_x_y and stabilized_vertex_x_y are CV_32FC2 NumPy arrays
-        # (see https://stackoverflow.com/a/47617999)
-        # of the coordinates of the mesh nodes in the stabilized video, indexed from the top left
-        # corner and moving left-to-right, top-to-bottom.
+        # unstabilized_vertex_x_y y stabilized_vertex_x_y son CV_32FC2 Numpy Arrays
+        #(Ver https://stackoverflow.com/a/47617999)
+        # de las coordenadas de los nodos de malla en el video estabilizado, indexado desde la parte superior izquierda
+        # esquina y moverse de izquierda a derecha, de arriba a abajo.
         unstabilized_vertex_x_y = self._get_vertex_x_y(frame_width, frame_height)
 
-        # row_col_to_unstabilized_vertex_x_y[row, col] and
-        # row_col_to_stabilized_vertex_x_y[row, col]
-        # contain the x and y positions of the vertex at the given row and col
+        # row_col_to_unstabilized_vertex_x_y [fila, col] y
+        # row_col_to_stabilized_vertex_x_y [fila, col]
+        # contener las posiciones x e y del vértice en la fila dada y col.
         row_col_to_unstabilized_vertex_x_y = np.reshape(unstabilized_vertex_x_y, (self.mesh_row_count + 1, self.mesh_col_count + 1, 2))
 
-        # stabilized_motion_mesh_by_frame_index[frame_index] is a CV_32FC2 NumPy array
-        # (see https://stackoverflow.com/a/47617999) containing the amount to add to each vertex
-        # coordinate to transform it from its unstabilized position at frame frame_index to its
-        # stabilized position at frame frame_index.
-        # Since the current displacements are given by
-        # vertex_unstabilized_displacements[frame_index],
-        # and the final displacements are given by
-        # vertex_stabilized_displacements[frame_index], adding the difference of the two
-        # produces the desired result.
+        # stabilized_motion_mesh_by_frame_index [frame_index] es una matriz Numpy CV_32FC2
+        #(ver https://stackoverflow.com/a/47617999) que contiene la cantidad a agregar a cada vértice
+        # Coordinar para transformarlo de su posición no estabilizada en Frame_Index a su
+        # Posición estabilizada en Frame_index.
+        # Dado que los desplazamientos actuales están dados por
+        # VERTEX_UNSTABILIZED_DISPLACEMENTS [Frame_index],
+        # y los desplazamientos finales están dados por
+        # vertex_stabilized_displacements [frame_index], agregando la diferencia de las dos
+        # produce el resultado deseado.
         stabilized_motion_mesh_by_frame_index = np.reshape(
             vertex_stabilized_displacements_by_frame_index - vertex_unstabilized_displacements_by_frame_index,
             (num_frames, -1, 1, 2)
         )
 
-        # Construct map from the stabilized frame to the unstabilized frame.
-        # If (x_s, y_s) in the stabilized video is taken from (x_u, y_u) in the unstabilized
-        # video, then
-        # stabilized_y_x_to_unstabilized_x[y_s, x_s] = x_u,
-        # stabilized_y_x_to_unstabilized_y[y_s, x_s] = y_u, and
-        # frame_stabilized_y_x_to_stabilized_x_y[y_s, x_s] = [x_u, y_u].
-        # NOTE the inverted coordinate order. This setup allows us to index into map just like
-        # we index into the image. Each point [x_u, y_u] in the array is in OpenCV's expected
-        # order so we can easily apply homographies to those points.
-        # NOTE If a given coordinate's value is not changed by the subsequent steps, then that
-        # coordinate falls outside the stabilized image (so in the output image, that image
-        # should be filled with a border color).
-        # Since these arrays' default values fall outside the unstabilized image, remap will
-        # fill in those coordinates in the stabilized image with the border color as desired.
+        # Construir mapa desde el marco estabilizado al marco no estabilizado.
+        # If (x_s, y_s) en el video estabilizado se toma de (x_u, y_u) en el no estabilizado
+        # video, entonces
+        # stabilized_y_x_to_unstabilized_x [y_s, x_s] = x_u,
+        # stabilized_y_x_to_unstabilized_y [y_s, x_s] = y_u, y
+        # Frame_stabilized_y_x_to_stabilized_x_y [y_s, x_s] = [x_u, y_u].
+        # Tenga en cuenta el orden de coordenadas invertidas.Esta configuración nos permite indexar en el mapa al igual que
+        # indexamos en la imagen.Cada punto [x_u, y_u] en la matriz es esperado
+        # Ordene para que podamos aplicar fácilmente homografías a esos puntos.
+        # Tenga en cuenta si los pasos posteriores no cambian el valor de una coordenada dada, entonces eso
+        # La coordenada cae fuera de la imagen estabilizada (así que en la imagen de salida, esa imagen
+        # debe llenarse con un color de borde).
+        # Dado que los valores predeterminados de estas matrices caen fuera de la imagen no estabilizada, la reasigna
+        # Complete esas coordenadas en la imagen estabilizada con el color del borde como se desee.
         frame_stabilized_y_x_to_unstabilized_x_template = np.full((frame_height, frame_width), frame_width + 1)
         frame_stabilized_y_x_to_unstabilized_y_template = np.full((frame_height, frame_width), frame_height + 1)
         frame_stabilized_y_x_to_stabilized_x_y_template = np.swapaxes(np.indices((frame_width, frame_height), dtype=np.float32), 0, 2)
         frame_stabilized_x_y_template = frame_stabilized_y_x_to_stabilized_x_y_template.reshape((-1, 1, 2))
 
-        # left_crop_x_by_frame_index[frame_index] contains the x-value where the left edge
-        # where frame frame_index would be cropped to produce a rectangular image;
-        # right_crop_x_by_frame_index, top_crop_y_by_frame_index, and
-        # bottom_crop_y_by_frame_index are analogous
+        # Left_crop_x_by_frame_index [frame_index] contiene el valor X donde el borde izquierdo
+        # donde frame_index se recortaría para producir una imagen rectangular;
+        # right_crop_x_by_frame_index, top_crop_y_by_frame_index, y
+        # bottom_crop_y_by_frame_index son análogas
         left_crop_x_by_frame_index = np.full(num_frames, 0)
         right_crop_x_by_frame_index = np.full(num_frames, frame_width - 1)
         top_crop_y_by_frame_index = np.full(num_frames, 0)
@@ -990,42 +994,42 @@ class Stabilizer:
             for frame_index in t:
                 unstabilized_frame = unstabilized_frames[frame_index]
 
-                # Construct map from the stabilized frame to the unstabilized frame.
-                # If (x_s, y_s) in the stabilized video is taken from (x_u, y_u) in the unstabilized
-                # video, then
-                # stabilized_y_x_to_unstabilized_x[y_s, x_s] = x_u,
-                # stabilized_y_x_to_unstabilized_y[y_s, x_s] = y_u, and
-                # frame_stabilized_y_x_to_stabilized_x_y[y_s, x_s] = [x_u, y_u].
-                # NOTE the inverted coordinate order. This setup allows us to index into map just like
-                # we index into the image. Each point [x_u, y_u] in the array is in OpenCV's expected
-                # order so we can easily apply homographies to those points.
-                # NOTE If a given coordinate's value is not changed by the subsequent steps, then that
-                # coordinate falls outside the stabilized image (so in the output image, that image
-                # should be filled with a border color).
-                # Since these arrays' default values fall outside the unstabilized image, remap will
-                # fill in those coordinates in the stabilized image with the border color as desired.
+                # Construir mapa desde el marco estabilizado al marco no estabilizado.
+                # If (x_s, y_s) en el video estabilizado se toma de (x_u, y_u) en el no estabilizado
+                # video, entonces
+                # stabilized_y_x_to_unstabilized_x [y_s, x_s] = x_u,
+                # stabilized_y_x_to_unstabilized_y [y_s, x_s] = y_u, y
+                # Frame_stabilized_y_x_to_stabilized_x_y [y_s, x_s] = [x_u, y_u].
+                # Tenga en cuenta el orden de coordenadas invertidas.Esta configuración nos permite indexar en el mapa al igual que
+                # indexamos en la imagen.Cada punto [x_u, y_u] en la matriz es esperado
+                # Ordene para que podamos aplicar fácilmente homografías a esos puntos.
+                # Tenga en cuenta si los pasos posteriores no cambian el valor de una coordenada dada, entonces eso
+                # La coordenada cae fuera de la imagen estabilizada (así que en la imagen de salida, esa imagen
+                # debe llenarse con un color de borde).
+                # Dado que los valores predeterminados de estas matrices caen fuera de la imagen no estabilizada, la reasigna
+                # Complete esas coordenadas en la imagen estabilizada con el color del borde como se desee.
                 frame_stabilized_y_x_to_unstabilized_x = np.copy(frame_stabilized_y_x_to_unstabilized_x_template)
                 frame_stabilized_y_x_to_unstabilized_y = np.copy(frame_stabilized_y_x_to_unstabilized_y_template)
                 frame_stabilized_x_y = np.copy(frame_stabilized_x_y_template)
 
-                # Determine the coordinates of the mesh vertices in the stabilized video.
-                # The current displacements are given by vertex_unstabilized_displacements, and
-                # the desired displacements are given by vertex_stabilized_displacements,
-                # so adding the difference of the two transforms the frame as desired.
+                # Determine las coordenadas de los vértices de malla en el video estabilizado.
+                # Los desplazamientos actuales están dados por VERTEX_UNSTABILED_DISPLACEMENTS, y
+                # Los desplazamientos deseados están dados por Vertex_Stabilized_Displacements,
+                # Entonces, agregar la diferencia de los dos transforma el marco como se desea.
                 stabilized_vertex_x_y = unstabilized_vertex_x_y + stabilized_motion_mesh_by_frame_index[frame_index]
 
                 row_col_to_stabilized_vertex_x_y = np.reshape(stabilized_vertex_x_y, (self.mesh_row_count + 1, self.mesh_col_count + 1, 2))
-                # Look at each face of the mesh. Since we know the original and transformed coordinates
-                # of its four vertices, we can construct a homography to fill in the remaining pixels
-                # TODO parallelize
+                # Mira cada cara de la malla.Ya que conocemos las coordenadas originales y transformadas
+                # De sus cuatro vértices, podemos construir una homografía para completar los píxeles restantes
+                # Todos paralelizan
                 for cell_top_left_row in range(self.mesh_row_count):
                     for cell_top_left_col in range(self.mesh_col_count):
 
-                        # Construct a mask representing the stabilized cell.
-                        # Since we know the cell's boundaries before and after stabilization, we can
-                        # construct a homography representing this cell's warp and then apply it to
-                        # the unstabilized cell (which is just a rectangle) to construct the stabilized
-                        # cell.
+                        # Construya una máscara que represente la célula estabilizada.
+                        # Dado que conocemos los límites de la célula antes y después de la estabilización, podemos
+                        # Construya una homografía que represente la urdimbre de esta célula y luego apliquela a
+                        # La celda no estabilizada (que es solo un rectángulo) para construir la estabilizada
+                        # celúla.
                         unstabilized_cell_bounds = row_col_to_unstabilized_vertex_x_y[cell_top_left_row:cell_top_left_row+2, cell_top_left_col:cell_top_left_col+2].reshape(-1, 2)
                         stabilized_cell_bounds = row_col_to_stabilized_vertex_x_y[cell_top_left_row:cell_top_left_row+2, cell_top_left_col:cell_top_left_col+2].reshape(-1, 2)
                         unstabilized_to_stabilized_homography, _ = cv2.findHomography(unstabilized_cell_bounds, stabilized_cell_bounds)
@@ -1045,11 +1049,13 @@ class Stabilizer:
                         cell_stabilized_y_x_to_unstabilized_x_y = cell_unstabilized_x_y.reshape((frame_height, frame_width, 2))
                         cell_stabilized_y_x_to_unstabilized_x, cell_stabilized_y_x_to_unstabilized_y = np.moveaxis(cell_stabilized_y_x_to_unstabilized_x_y, 2, 0)
 
-                        # update the overall stabilized-to-unstabilized map, applying this cell's
-                        # transformation only to those pixels that are actually part of this cell
+                        # Actualizar el mapa general estabilizado a no estabilizado, aplicando esta celda
+                        # Transformación solo para aquellos píxeles que en realidad son parte de esta celda
                         frame_stabilized_y_x_to_unstabilized_x = np.where(stabilized_cell_mask, cell_stabilized_y_x_to_unstabilized_x, frame_stabilized_y_x_to_unstabilized_x)
                         frame_stabilized_y_x_to_unstabilized_y = np.where(stabilized_cell_mask, cell_stabilized_y_x_to_unstabilized_y, frame_stabilized_y_x_to_unstabilized_y)
 
+                # Este método se utiliza para mapear los píxeles de una imagen a nuevas
+                #UbicacionesBasadasEnMapasDeCoordenadas
                 stabilized_frame = cv2.remap(
                     unstabilized_frame,
                     frame_stabilized_y_x_to_unstabilized_x.reshape((frame_height, frame_width, 1)).astype(np.float32),
@@ -1058,30 +1064,30 @@ class Stabilizer:
                     borderValue=self.color_outside_image_area_bgr
                 )
 
-                # crop the frame
-                # left edge: the maximum stabilized x_s that corresponds to the unstabilized
-                # x_u = 0
+                # recortar el marco
+                # Edge izquierdo: el X_S estabilizado máximo que corresponde al no estabilizado
+                #XU =0
 
                 stabilized_image_x_matching_unstabilized_left_edge = np.where(np.abs(frame_stabilized_y_x_to_unstabilized_x - 0) < 1)[1]
                 if stabilized_image_x_matching_unstabilized_left_edge.size > 0:
                     left_crop_x_by_frame_index[frame_index] = np.max(stabilized_image_x_matching_unstabilized_left_edge)
 
-                # right edge: the minimum stabilized x_s that corresponds to the stabilized
-                # x_u = frame_width - 1
+                # Edge derecho: el X_S estabilizado mínimo que corresponde al estabilizado
+                #XU =AnchoDeMarco1
 
                 stabilized_image_x_matching_unstabilized_right_edge = np.where(np.abs(frame_stabilized_y_x_to_unstabilized_x - (frame_width - 1)) < 1)[1]
                 if stabilized_image_x_matching_unstabilized_right_edge.size > 0:
                     right_crop_x_by_frame_index[frame_index] = np.min(stabilized_image_x_matching_unstabilized_right_edge)
 
-                # top edge: the maximum stabilized y_s that corresponds to the unstabilized
-                # y_u = 0
+                # borde superior: el y_s estabilizado máximo que corresponde al no estabilizado
+                #YU =0
 
                 stabilized_image_y_matching_unstabilized_top_edge = np.where(np.abs(frame_stabilized_y_x_to_unstabilized_y - 0) < 1)[0]
                 if stabilized_image_y_matching_unstabilized_top_edge.size > 0:
                     top_crop_y_by_frame_index[frame_index] = np.max(stabilized_image_y_matching_unstabilized_top_edge)
 
-                # bottom edge: the minimum stabilized y_s that corresponds to the unstabilized
-                # y_u = frame_height - 1
+                # Borde inferior: el y_ estabilizado mínimo que corresponde al no estabilizado
+                #YU =AlturaDelMarco1
 
                 stabilized_image_y_matching_unstabilized_bottom_edge = np.where(np.abs(frame_stabilized_y_x_to_unstabilized_y - (frame_height - 1)) < 1)[0]
                 if stabilized_image_y_matching_unstabilized_bottom_edge.size > 0:
@@ -1089,7 +1095,7 @@ class Stabilizer:
 
                 stabilized_frames.append(stabilized_frame)
 
-        # the final video crop is the one that would adequately crop every single frame
+        # La cosecha de video final es la que recortaría adecuadamente cada cuadro
         left_crop_x = np.max(left_crop_x_by_frame_index)
         right_crop_x = np.min(right_crop_x_by_frame_index)
         top_crop_y = np.max(top_crop_y_by_frame_index)
@@ -1119,20 +1125,20 @@ class Stabilizer:
         frame_height, frame_width = uncropped_frames[0].shape[:2]
         left_crop_x, top_crop_y, right_crop_x, bottom_crop_y = crop_boundaries
 
-        # There are two ways to scale up the image: increase its width to fill the original width,
-        # scaling the height appropriately, or increase its height to fill the original height,
-        # scaling the width appropriately. At least one of these options will result in the image
-        # completely filling the frame.
+        # Hay dos formas de ampliar la imagen: aumentar su ancho para llenar el ancho original,
+        # Escalar la altura adecuadamente, o aumentar su altura para llenar la altura original,
+        # Escalar el ancho apropiadamente.Al menos una de estas opciones dará como resultado la imagen
+        # Completar completamente el marco.
         uncropped_aspect_ratio = frame_width / frame_height
         cropped_aspect_ratio = (right_crop_x + 1 - left_crop_x) / (bottom_crop_y + 1 - top_crop_y)
 
         if cropped_aspect_ratio >= uncropped_aspect_ratio:
-            # the cropped image is proportionally wider than the original, so to completely fill the
-            # frame, it must be scaled so its height matches the frame height
+            # La imagen recortada es proporcionalmente más ancha que la original, por lo que para llenar completamente el
+            # marco, debe escalarse para que su altura coincida con la altura del marco
             uncropped_to_cropped_scale_factor = frame_height / (bottom_crop_y + 1 - top_crop_y)
         else:
-            # the cropped image is proportionally taller than the original, so to completely fill
-            # the frame, it must be scaled so its width matches the frame width
+            # La imagen recortada es proporcionalmente más alta que la original, por lo que para llenar por completo
+            # El marco, debe escalarse para que su ancho coincida con el ancho del marco
             uncropped_to_cropped_scale_factor = frame_width / (right_crop_x + 1 - left_crop_x)
 
         cropped_frames = []
@@ -1186,10 +1192,10 @@ class Stabilizer:
                     unstabilized_frame, cropped_frame
                 )
 
-                # the scaling component has x-component cropped_to_unstabilized_homography[0][0]
-                # and y-component cropped_to_unstabilized_homography[1][1],
-                # so the fraction of the enlarged video that actually fits in the frame is
-                # 1 / (cropped_to_unstabilized_homography[0][0] * cropped_to_unstabilized_homography[1][1])
+                # El componente de escala tiene X-Component Cropped_to_unstabilized_homography [0] [0]
+                # e componente y componente cropped_to_unstabilized_homography [1] [1],
+                # Entonces, la fracción del video ampliado que realmente se ajusta en el marco es
+                # 1 / (Cropped_to_unstabilized_homography [0] [0] * Cropped_to_unstabilized_homography [1] [1])
                 cropping_ratio = 1 / (unstabilized_to_cropped_homography[0][0] * unstabilized_to_cropped_homography[1][1])
                 cropping_ratios[frame_index] = cropping_ratio
 
@@ -1295,7 +1301,7 @@ class Stabilizer:
         (The video is saved to output_path.)
         '''
 
-        # adapted from https://learnopencv.com/read-write-and-display-a-video-using-opencv-cpp-python/
+        # adaptado de https://learnopencv.com/read-write-and-display-a-video-using-opencv-cpp-python/
         frame_height, frame_width = stabilized_frames[0].shape[:2]
         video = cv2.VideoWriter(
             output_path,
