@@ -25,10 +25,10 @@ See `requirements.txt` for the implementation's dependencies.
 
 #### Example
 
-Stabilize a video by constructing a `MeshFlowStabilizer` object as shown below.
+Stabilize a video by constructing a `Stabilizer` object as shown below.
 
 ```
-stabilizer = MeshFlowStabilizer()
+stabilizer = Stabilizer()
 
 input_path = 'videos/video-1/video-1.m4v'
 output_path = 'videos/video-1/stabilized-method-original.m4v'
@@ -39,7 +39,7 @@ stabilizer.stabilize(input_path, output_path)
 
 #### Constructor
 
-The `MeshFlowStabilizer` constructor takes the following optional arguments.
+The `Stabilizer` constructor takes the following optional arguments.
 
 * `mesh_row_count`: The number of rows contained in the mesh. Note that there are
 `1 + mesh_row_count` vertices per row. Defaults to `16`.
@@ -68,24 +68,20 @@ The `MeshFlowStabilizer` constructor takes the following optional arguments.
 * `visualize`: Whether or not to display a video loop of the unstabilized and cropped, stabilized
     videos after saving the stabilized video. Pressing `Q` closes the window. Defaults to `False`.
 
-#### MeshFlow variants
+####  variants
 
 In addition, `stabilize` takes an optional `adaptive_weights_definition` argument. This
 argument specifies how to define the energy function's adaptive weights $\lambda_t$. The
-argument's four MeshFlowStabilizer.possible values, listed below, each describe a "variant" of
-MeshFlow.
+argument's four Stabilizer.possible values, listed below, each describe a "variant" of
+.
 
-* `MeshFlowStabilizer.ADAPTIVE_WEIGHTS_DEFINITION_ORIGINAL` (default): Calculate the adaptive
+* `Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_ORIGINAL` (default): Calculate the adaptive
     weights using the linear model presented in the original paper. I made assumptions where the
     paper's description was vague.
-* `MeshFlowStabilizer.ADAPTIVE_WEIGHTS_DEFINITION_FLIPPED`: Calculate the adaptive weights using a
-    variant of the original model in which one of the terms has had its sign flipped. Suggested
-    [here](https://github.com/sudheerachary/Mesh-Flow-Video-Stabilization/issues/12#issuecomment-553737073)
-    by GitHub user @LeeVinteuil.
-* `MeshFlowStabilizer.ADAPTIVE_WEIGHTS_DEFINITION_CONSTANT_HIGH`: Set the adaptive weights to $100$.
-    This definition appears in the [MeshFlow implementation](https://github.com/sudheerachary/Mesh-Flow-Video-Stabilization/tree/5780fe750cf7dc35e5cfcd0b4a56d408ce3a9e53) by GitHub user
-    @sudheerachary.
-* `MeshFlowStabilizer.ADAPTIVE_WEIGHTS_DEFINITION_CONSTANT_LOW`: Set the adaptive weights to $1$.
+* `Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_FLIPPED`: Calculate the adaptive weights using a
+    variant of the original model in which one of the terms has had its sign flipped.
+* `Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_CONSTANT_HIGH`: Set the adaptive weights to $100$
+* `Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_CONSTANT_LOW`: Set the adaptive weights to $1$.
     This model is based on the authors' claim that smaller adaptive weights lead to less
     cropping and wobbling. Here both terms in the energy equation have equal weight.
 
@@ -100,21 +96,21 @@ An example of more advanced usage is shown below.
 #### Example
 
 ```
-stabilizer = MeshFlowStabilizer(mesh_row_count=20, mesh_col_count=20, visualize=True)
+stabilizer = Stabilizer(mesh_row_count=20, mesh_col_count=20, visualize=True)
 
 input_path = 'videos/video-1/video-1.m4v'
 output_path = 'videos/video-1/stabilized-method-original.m4v'
 stabilizer.stabilize(
     input_path,
     output_path,
-    adaptive_weights_definition=MeshFlowStabilizer.ADAPTIVE_WEIGHTS_DEFINITION_CONSTANT_HIGH
+    adaptive_weights_definition=Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_CONSTANT_HIGH
 )
 ```
 
 ## Demos
 
 Demo videos are available in the `videos` directory. Each subdirectory contains five videos:
-an unstabilized video, and four stabilized versions stabilized by the four MeshFlow variants
+an unstabilized video, and four stabilized versions stabilized by the four  variants
 described above.
 
 Video credits are available in `videos/credits.txt`.
