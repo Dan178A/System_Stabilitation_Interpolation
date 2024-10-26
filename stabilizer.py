@@ -3,7 +3,7 @@ import math
 import numpy as np
 import statistics
 import tqdm
-
+import sys
 class Stabilizer:
 
     '''
@@ -1320,8 +1320,9 @@ class Stabilizer:
 
 def main():
     # TODO get video path from command line args
-    input_path = 'videos/video-11/VID_20240825_140454cps_.mp4'
-    output_path = 'videos/video-11/stabilized-method-original.m4v'
+
+    input_path = 'videos/video-11/VID_20240825_140454cps_.mp4' if len(sys.argv) < 2 else sys.argv[1]
+    output_path = 'videos/video-11/stabilized-method-original.m4v' if len(sys.argv) < 3 else sys.argv[2]
     stabilizer = Stabilizer(visualize=True)
     cropping_ratio, distortion_score, stability_score = stabilizer.stabilize(
         input_path, output_path,

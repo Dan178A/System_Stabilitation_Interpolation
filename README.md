@@ -106,6 +106,15 @@ stabilizer.stabilize(
     adaptive_weights_definition=Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_CONSTANT_HIGH
 )
 ```
+### Initial motion vectors
+
+![initial-motion-mesh](assets/148.jpg)
+
+
+### Final motion vectors
+
+![final-motion-mesh](assets/149.jpg)
+  
 
 ## Demos
 
