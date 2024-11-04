@@ -92,7 +92,7 @@ class Stabilizer:
         self.feature_detector = cv2.FastFeatureDetector_create()
 
 
-    def stabilize(self, input_path, output_path, adaptive_weights_definition=ADAPTIVE_WEIGHTS_DEFINITION_ORIGINAL):
+    def stabilize(self, input_path:str, output_path:str, adaptive_weights_definition=ADAPTIVE_WEIGHTS_DEFINITION_ORIGINAL):
         '''
         Read in the video at the given input path and output a stabilized version to the given
         output path.
@@ -162,7 +162,7 @@ class Stabilizer:
         return (cropping_ratio, distortion_score, stability_score)
 
 
-    def _get_unstabilized_frames_and_video_features(self, input_path):
+    def _get_unstabilized_frames_and_video_features(self, input_path) -> tuple[cv2.typing.MatLike, int, float, int]:
         '''
         Helper method for stabilize.
         Return each frame of the input video as a NumPy array along with miscellaneous video
@@ -206,7 +206,7 @@ class Stabilizer:
         return (unstabilized_frames, num_frames, frames_per_second, codec)
 
 
-    def _get_next_frame(self, video):
+    def _get_next_frame(self, video: cv2.VideoCapture):
         '''
         Helper method for _get_unstabilized_frames_and_video_features.
 
@@ -318,7 +318,7 @@ class Stabilizer:
         #AplicarUnaTransformaciónDePerspectivaALasCoordenadasDeLosVértices
         #UtilizandoLaMatrizDeHomografíaEarlyToLateHomography
         #Luego,CalcularLasVelocidadesGlobalesDeLosVérticesRestandoLasCoordenadas
-        #OriginalesDeLasCoordenadasTransformadas
+        #OriginalesDeLasCoordenadasTransformadas Interpolation
         vertex_global_velocities = cv2.perspectiveTransform(vertex_x_y, early_to_late_homography) - vertex_x_y
         vertex_global_velocities_by_row_col = np.reshape(vertex_global_velocities, (self.mesh_row_count + 1, self.mesh_col_count + 1, 2))
         vertex_global_x_velocities_by_row_col = vertex_global_velocities_by_row_col[:, :, 0]
@@ -407,8 +407,6 @@ class Stabilizer:
         ]
 
         if early_features is not None:
-            # Calcule las velocidades de las características;Ver https://stackoverflow.com/a/44409124 para
-            # Combinar las posiciones y velocidades en una matriz
 
             # Si un punto no hubiera sufrido movimiento, entonces su posición en el marco tardío sería
             # Se encuentra aplicando Early_TO_Late_Homography a su posición en el cuadro temprano.
@@ -626,7 +624,7 @@ class Stabilizer:
         return (early_features, late_features)
 
 
-    def _get_stabilized_vertex_displacements(self, num_frames, unstabilized_frames, adaptive_weights_definition, vertex_unstabilized_displacements_by_frame_index, homographies):
+    def _get_stabilized_vertex_displacements(self, num_frames:int, unstabilized_frames:cv2.typing.MatLike, adaptive_weights_definition:int, vertex_unstabilized_displacements_by_frame_index:np.ndarray, homographies:np.ndarray) -> np.ndarray:
         '''
         Helper method for stabilize.
 
@@ -707,7 +705,7 @@ class Stabilizer:
         return vertex_stabilized_displacements_by_frame_index
 
 
-    def _get_jacobi_method_input(self, num_frames, frame_width, frame_height, adaptive_weights_definition, homographies):
+    def _get_jacobi_method_input(self, num_frames:int, frame_width:float, frame_height:float, adaptive_weights_definition:int, homographies:np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         '''
         Helper method for _get_stabilized_displacements.
         The Jacobi method (see https://en.wikipedia.org/w/index.php?oldid=1036645158),
@@ -780,7 +778,7 @@ class Stabilizer:
         return (off_diagonal_coefficients, on_diagonal_coefficients)
 
 
-    def _get_adaptive_weights(self, num_frames, frame_width, frame_height, adaptive_weights_definition, homographies):
+    def _get_adaptive_weights(self, num_frames:int, frame_width:float, frame_height:float, adaptive_weights_definition:int, homographies:np.ndarray):
         '''
         Helper method for _get_jacobi_method_input.
         Return the array of adaptive weights for use in the energy function.
@@ -838,7 +836,7 @@ class Stabilizer:
         return adaptive_weights
 
 
-    def _get_jacobi_method_output(self, off_diagonal_coefficients, on_diagonal_coefficients, x_start, b):
+    def _get_jacobi_method_output(self, off_diagonal_coefficients:np.ndarray, on_diagonal_coefficients:np.ndarray, x_start, b):
         '''
         Helper method for _get_stabilized_displacements.
         Using the Jacobi method (see https://en.wikipedia.org/w/index.php?oldid=1036645158),
@@ -875,7 +873,7 @@ class Stabilizer:
         return x
 
 
-    def _get_vertex_x_y(self, frame_width, frame_height):
+    def _get_vertex_x_y(self, frame_width:float, frame_height:float):
         '''
         Helper method for _get_stabilized_frames_and_crop_boundaries_and_crop_boundaries and _get_unstabilized_vertex_velocities.
         Return a NumPy array that maps [row, col] coordinates to [x, y] coordinates.
@@ -903,7 +901,7 @@ class Stabilizer:
         ], dtype=np.float32)
 
 
-    def _get_stabilized_frames_and_crop_boundaries(self, num_frames, unstabilized_frames, vertex_unstabilized_displacements_by_frame_index, vertex_stabilized_displacements_by_frame_index):
+    def _get_stabilized_frames_and_crop_boundaries(self, num_frames, unstabilized_frames:cv2.typing.MatLike, vertex_unstabilized_displacements_by_frame_index:np.ndarray, vertex_stabilized_displacements_by_frame_index:np.ndarray):
         '''
         Helper method for stabilize.
 
@@ -1056,6 +1054,7 @@ class Stabilizer:
 
                 # Este método se utiliza para mapear los píxeles de una imagen a nuevas
                 #UbicacionesBasadasEnMapasDeCoordenadas
+                # Interpolation
                 stabilized_frame = cv2.remap(
                     unstabilized_frame,
                     frame_stabilized_y_x_to_unstabilized_x.reshape((frame_height, frame_width, 1)).astype(np.float32),
@@ -1104,7 +1103,7 @@ class Stabilizer:
         return (stabilized_frames, (left_crop_x, top_crop_y, right_crop_x, bottom_crop_y))
 
 
-    def _crop_frames(self, uncropped_frames, crop_boundaries):
+    def _crop_frames(self, uncropped_frames:list, crop_boundaries:tuple):
         '''
         Return copies of the given frames that have been cropped according to the given crop
         boundaries.
@@ -1153,7 +1152,7 @@ class Stabilizer:
         return cropped_frames
 
 
-    def _compute_cropping_ratio_and_distortion_score(self, num_frames, unstabilized_frames, cropped_frames):
+    def _compute_cropping_ratio_and_distortion_score(self, num_frames:int, unstabilized_frames:cv2.typing.MatLike, cropped_frames:list):
         '''
         Helper function for stabilize.
 
@@ -1209,7 +1208,7 @@ class Stabilizer:
 
 
 
-    def _compute_stability_score(self, num_frames, vertex_stabilized_displacements_by_frame_index):
+    def _compute_stability_score(self, num_frames:int, vertex_stabilized_displacements_by_frame_index:np.ndarray):
         '''
         Helper function for stabilize.
 
@@ -1283,7 +1282,7 @@ class Stabilizer:
                     return
 
 
-    def _write_stabilized_video(self, output_path, num_frames, frames_per_second, codec, stabilized_frames):
+    def _write_stabilized_video(self, output_path:str, num_frames:int, frames_per_second:int, codec:int, stabilized_frames:list):
         '''
         Helper method for stabilize.
         Write the given stabilized frames as a video to the given path.
@@ -1321,8 +1320,8 @@ class Stabilizer:
 def main():
     # TODO get video path from command line args
 
-    input_path = 'videos/video-11/VID_20240825_140454cps_.mp4' if len(sys.argv) < 2 else sys.argv[1]
-    output_path = 'videos/video-11/stabilized-method-original.m4v' if len(sys.argv) < 3 else sys.argv[2]
+    input_path = 'videos/video-1/video-1.m4v' if len(sys.argv) < 2 else sys.argv[1]
+    output_path = 'videos/video-1/stabilized-method-original.m4v' if len(sys.argv) < 3 else sys.argv[2]
     stabilizer = Stabilizer(visualize=True)
     cropping_ratio, distortion_score, stability_score = stabilizer.stabilize(
         input_path, output_path,
