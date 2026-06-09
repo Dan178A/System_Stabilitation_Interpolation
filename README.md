@@ -699,6 +699,6 @@ Hecho con ❤️ por [Daniel Alejandro Silva Rojas](https://github.com/Dan178A)
 
 *"Qualitas est fundamentum"* - La calidad es el fundamento
 
-### [📜 Ver Certificación de Aprobación](https://github.com/Dan178A/System_Stabilitation_Interpolation/blob/main/CERTIFICATION.md)
+### [📜 Ver Certificación de Aprobación](https://github.com/Dan178A/System_Stabilitation_Interpolation/blob/main/Carta%20Culminacion.pdf)
 
 </div>
