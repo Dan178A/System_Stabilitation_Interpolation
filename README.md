@@ -1,125 +1,168 @@
-# System_Stabilitation_Interpolation
+# Estabilizador de Video · Interpolación + Aprendizaje Automático
 
-Stabilization system for mobile devices using interpolation
+Sistema de estabilización de video para dispositivos móviles que combina estimación de
+movimiento por malla, interpolación y **aprendizaje automático**, con una **interfaz web
+moderna** para subir un video, elegir el método, ver el progreso en vivo y comparar el
+resultado antes/después con métricas de calidad.
 
+> Trabajo de Investigación — Licenciatura en Computación, Universidad del Zulia.
+> Autor: Daniel Alejandro Silva Rojas.
 
-At a high level, stabilizes a video in four steps.
+Esta versión moderniza el proyecto original (que era solo línea de comandos) con tres
+aportes nuevos:
 
-1) estimates the unstabilized video's motion by placing a mesh over it and
-tracking how each mesh vertex moves. Each vertex moves with its nearby features.
-2) computes how each mesh vertex should move in the stabilized video by
-minimizing an energy function.
-3) stabilizes the video by warping it so that each mesh vertex follows its stabilized
-motion.
-4) crops and resizes the video to fit its initial dimensions.
+1. **Interfaz web funcional** (FastAPI + frontend). Subes un video, ajustas parámetros y
+   obtienes una comparación interactiva antes/después con un dashboard de métricas
+   (MSE, RMSE, PSNR, SSIM).
+2. **Pesos adaptativos predichos por una red neuronal** — lo que la tesis proponía pero el
+   código no implementaba. Un modelo `MLPRegressor` aprende a mapear descriptores de
+   movimiento a los pesos de la función de energía.
+3. **Optimización de rendimiento** — modo de procesado a resolución reducida, límite de
+   fotogramas para previsualización, extracción de descriptores vectorizada y blindaje del
+   suavizado temporal para clips cortos.
 
-Because works with sparse mesh vertex motions instead of dense pixel motions,
-the algorithm is relatively computationally cheap. Note that this implementation was built for
-experimentation and is not optimized for speed.
+---
 
-## Usage
+## Cómo se estabiliza un video (4 pasos)
 
-See `requirements.txt` for the implementation's dependencies.
+1. **Estimación de movimiento:** se coloca una malla sobre el video y se rastrea cómo se
+   mueve cada vértice usando detección y seguimiento de características (flujo óptico).
+2. **Minimización de energía:** se calcula cómo debe moverse cada vértice en el video
+   estabilizado minimizando una función de energía (método de Jacobi). Los **pesos
+   adaptativos** de esa función controlan el equilibrio entre estabilidad y recorte.
+3. **Interpolación y deformación:** se deforma cada fotograma para que los vértices sigan su
+   trayectoria estabilizada, mapeando los píxeles con interpolación.
+4. **Recorte y redimensionamiento:** se recortan los bordes inestables y se reescala al
+   tamaño original.
 
-### Basic usage
+---
 
-#### Example
+## Inicio rápido (interfaz web)
 
-Stabilize a video by constructing a `Stabilizer` object as shown below.
+```bash
+# 1. Crear entorno e instalar dependencias
+python -m venv venv
+venv\Scripts\activate            # Windows
+# source venv/bin/activate       # macOS / Linux
+pip install -r requirements.txt
 
+# 2. Arrancar la aplicación (entrena el modelo ML la primera vez)
+python run.py
 ```
-stabilizer = Stabilizer()
 
-input_path = 'videos/video-1/video-1.m4v'
-output_path = 'videos/video-1/stabilized-method-original.m4v'
-stabilizer.stabilize(input_path, output_path)
+Abre el navegador en **http://127.0.0.1:8000**, arrastra un video y pulsa *Estabilizar*.
+
+Para reproducción de video en el navegador se recomienda tener **ffmpeg** instalado (el
+backend transcodifica la salida a H.264). Si no está, se sirve el archivo tal cual.
+
+### Métodos de pesos adaptativos disponibles en la interfaz
+
+| Método | Descripción |
+|--------|-------------|
+| **Aprendizaje automático (IA)** | Pesos predichos por la red neuronal entrenada. |
+| Modelo lineal (paper) | Modelo lineal clásico del paper original. Equilibrado. |
+| Estabilidad máxima | Suavizado agresivo: más estable, más recorte. |
+| Recorte mínimo | Suavizado suave: menos recorte, ligero temblor. |
+
+---
+
+## El modelo de aprendizaje automático
+
+El módulo `ml/` implementa la predicción de pesos adaptativos.
+
+- `ml/train_adaptive_weights.py` entrena un **perceptrón multicapa** (`MLPRegressor`,
+  scikit-learn) que aprende a mapear cuatro descriptores de movimiento por fotograma
+  (traslación normalizada, componente afín y términos derivados) al peso adaptativo λ_t.
+- El objetivo de entrenamiento parte del modelo lineal del paper como "maestro" y lo ajusta
+  hacia una preferencia de estabilidad; el modelo aprende una versión suave, no lineal y
+  generalizable, **reentrenable sobre descriptores reales** extraídos de videos etiquetados.
+- El artefacto entrenado se guarda en `ml/adaptive_weights_model.pkl` y el motor lo carga de
+  forma perezosa. Si no existe, el sistema recae de forma segura en el modelo lineal.
+
+Reentrenar el modelo:
+
+```bash
+python ml/train_adaptive_weights.py
 ```
 
-### Advanced usage
+---
 
-#### Constructor
+## Uso por código (API del motor)
 
-The `Stabilizer` constructor takes the following optional arguments.
+El motor sigue disponible como biblioteca. Nuevos parámetros en negrita.
 
-* `mesh_row_count`: The number of rows contained in the mesh. Note that there are
-`1 + mesh_row_count` vertices per row. Defaults to `16`.
-* `mesh_col_count`: The number of columns contained in the mesh. Note that there are
-`1 + mesh_col_count` vertices per column. Defaults to `16`.
-* `mesh_outlier_subframe_row_count`: The height in rows of each subframe when breaking down
-    the image into subframes to eliminate outlying features. Defaults to `4`.
-* `mesh_outlier_subframe_col_count`: The width of columns of each subframe when breaking
-    down the image into subframes to eliminate outlying features. Defaults to `4`.
-* `feature_ellipse_row_count`: The height in rows of the ellipse drawn around each feature
-    to match it with vertices in the mesh. Defaults to `10`.
-* `feature_ellipse_col_count`: The width in columns of the ellipse drawn around each feature
-    to match it with vertices in the mesh. Defaults to `10`.
-* `homography_min_number_corresponding_features`: The minimum number of features
-    that must correspond between two frames to perform a homography. Defaults to `4`.
-* `temporal_smoothing_radius`: In the energy function used to smooth the image, the number of
-    frames to inspect both before and after each frame when computing that frame's
-    regularization term. Thus, the regularization term involves a sum over up to
-    `2 * temporal_smoothing_radius` frame indexes. Note that this constant is denoted as
-    $\Omega_{t}$ in the original paper. Defaults to `10`.
-* `optimization_num_iterations`: The number of iterations of the Jacobi method to perform when
-    minimizing the energy function. Defaults to `100`.
-* `color_outside_image_area_bgr`: The color, expressed in BGR, to display behind the
-    stabilized footage in the output. Note that this color should be removed during cropping, but is
-    customizable just in case. Defaults to `(0, 0, 255)`.
-* `visualize`: Whether or not to display a video loop of the unstabilized and cropped, stabilized
-    videos after saving the stabilized video. Pressing `Q` closes the window. Defaults to `False`.
+```python
+import cv2
+from stabilizer import Stabilizer
 
-####  variants
+stabilizer = Stabilizer(
+    mesh_row_count=16, mesh_col_count=16,
+    temporal_smoothing_radius=10,
+    processing_scale=0.5,          # NUEVO: procesa a resolución reducida (más rápido)
+    max_frames=None,               # NUEVO: limita fotogramas (previsualización)
+    output_fourcc=cv2.VideoWriter_fourcc(*'mp4v'),  # NUEVO: códec de salida
+    progress_callback=lambda etapa, frac: print(etapa, frac),  # NUEVO: progreso
+)
 
-In addition, `stabilize` takes an optional `adaptive_weights_definition` argument. This
-argument specifies how to define the energy function's adaptive weights $\lambda_t$. The
-argument's four Stabilizer.possible values, listed below, each describe a "variant" of
-.
-
-* `Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_ORIGINAL` (default): Calculate the adaptive
-    weights using the linear model presented in the original paper. I made assumptions where the
-    paper's description was vague.
-* `Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_FLIPPED`: Calculate the adaptive weights using a
-    variant of the original model in which one of the terms has had its sign flipped.
-* `Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_CONSTANT_HIGH`: Set the adaptive weights to $100$
-* `Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_CONSTANT_LOW`: Set the adaptive weights to $1$.
-    This model is based on the authors' claim that smaller adaptive weights lead to less
-    cropping and wobbling. Here both terms in the energy equation have equal weight.
-
-#### Performance metrics
-
-Finally, `stabilize` returns a tuple `(cropping_ratio, distortion_score, stability_score)` of three
-performance metrics describing the stabilized video. These metrics are described in the original
-paper. I made assumptions where the paper's definitions were vague.
-
-An example of more advanced usage is shown below.
-
-#### Example
-
-```
-stabilizer = Stabilizer(mesh_row_count=20, mesh_col_count=20, visualize=True)
-
-input_path = 'videos/video-1/video-1.m4v'
-output_path = 'videos/video-1/stabilized-method-original.m4v'
-stabilizer.stabilize(
-    input_path,
-    output_path,
-    adaptive_weights_definition=Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_CONSTANT_HIGH
+crop, distortion, stability = stabilizer.stabilize(
+    'videos/video-1/video-1.m4v',
+    'salida.mp4',
+    adaptive_weights_definition=Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_ML,  # NUEVO método
 )
 ```
-### Initial motion vectors
 
-![initial-motion-mesh](assets/148.jpg)
+`stabilize` devuelve `(cropping_ratio, distortion_score, stability_score)` como en el
+original.
 
+---
 
-### Final motion vectors
+## Métricas de calidad
 
-![final-motion-mesh](assets/149.jpg)
-  
+La interfaz mide la **estabilidad temporal** comparando fotogramas consecutivos (un video
+más estable tiene menor diferencia entre fotogramas contiguos):
 
-## Demos
+- **MSE / RMSE** — error cuadrático medio (menor es mejor).
+- **PSNR** — relación señal-ruido de pico en dB (mayor es mejor).
+- **SSIM** — similitud estructural, 0 a 1 (cercano a 1 es mejor).
 
-Demo videos are available in the `videos` directory. Each subdirectory contains five videos:
-an unstabilized video, and four stabilized versions stabilized by the four  variants
-described above.
+Se muestran los valores del video original y del estabilizado junto con la mejora relativa.
+También se reportan las métricas del motor del paper: ratio de recorte, distorsión y
+estabilidad.
 
-Video credits are available in `videos/credits.txt`.
+---
+
+## Estructura del proyecto
+
+```
+stabilizer.py                     Motor de estabilización (clase Stabilizer)
+run.py                            Lanzador de la aplicación web
+requirements.txt                  Dependencias
+ml/
+  train_adaptive_weights.py       Entrenamiento del modelo de pesos adaptativos
+  adaptive_weights_model.pkl      Modelo entrenado (se genera al entrenar)
+backend/
+  app.py                          API FastAPI (upload, progreso SSE, resultados, video)
+  metrics.py                      Cálculo de MSE / RMSE / PSNR / SSIM
+frontend/
+  index.html                      Interfaz web (subida, ajustes, comparación, métricas)
+videos/                           Videos de demostración
+```
+
+## API HTTP
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/` | Interfaz web |
+| GET | `/api/methods` | Catálogo de métodos |
+| POST | `/api/stabilize` | Sube video + parámetros, inicia un trabajo |
+| GET | `/api/progress/{job}` | Progreso en vivo (SSE) |
+| GET | `/api/result/{job}` | Métricas y estado (JSON) |
+| GET | `/api/video/{job}/{original\|stabilized}` | Sirve los videos |
+
+---
+
+## Créditos
+
+Videos de demostración en `videos/credits.txt`. Algoritmo base de estabilización por malla
+con minimización de energía (MeshFlow); esta implementación fue construida para
+experimentación y ampliada con aprendizaje automático e interfaz web.

@@ -1,0 +1,8 @@
+/sessions/festive-peaceful-lamport/mnt/System_Stabilitation_Interpolation/README.md
+/sessions/festive-peaceful-lamport/mnt/System_Stabilitation_Interpolation/TI-DanielAlejandroSilvaRojas1eraCohorte.md
+/sessions/festive-peaceful-lamport/mnt/System_Stabilitation_Interpolation/requirements.txt
+/sessions/festive-peaceful-lamport/mnt/System_Stabilitation_Interpolation/videos/credits.txt
+/sessions/festive-peaceful-lamport/mnt/System_Stabilitation_Interpolation/assets/148.jpg
+/sessions/festive-peaceful-lamport/mnt/System_Stabilitation_Interpolation/assets/149.jpg
+/sessions/festive-peaceful-lamport/mnt/System_Stabilitation_Interpolation/classes_Stabilizer.png
+/sessions/festive-peaceful-lamport/mnt/System_Stabilitation_Interpolation/packages_Stabilizer.png

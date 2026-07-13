@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estabilizador de Video · IA + Interpolación</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07090f; --bg-2:#0c1018; --surface:#121826cc; --surface-solid:#131a28;
+  --border:#26304680; --border-strong:#39456180;
+  --text:#eaf0fb; --text-dim:#98a4bd; --text-faint:#63708c;
+  --accent:#38e2ff; --accent-2:#7c6bff; --accent-3:#31f6c9;
+  --danger:#ff5f6d; --success:#31f6c9; --warn:#ffce54;
+  --grad:linear-gradient(120deg,#38e2ff 0%,#7c6bff 55%,#31f6c9 110%);
+  --shadow:0 20px 60px -20px #000c;
+  --r-sm:10px; --r:16px; --r-lg:24px;
+  --sp:8px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:
+    radial-gradient(1100px 600px at 78% -8%,#7c6bff22,transparent 60%),
+    radial-gradient(900px 520px at 8% 8%,#38e2ff1c,transparent 55%),
+    var(--bg);
+  color:var(--text);font-family:Inter,system-ui,sans-serif;line-height:1.55;
+  -webkit-font-smoothing:antialiased;min-height:100dvh;
+}
+h1,h2,h3{font-family:"Space Grotesk",Inter,sans-serif;line-height:1.15;margin:0}
+.wrap{max-width:1160px;margin:0 auto;padding:0 20px}
+.mono{font-variant-numeric:tabular-nums}
+
+/* Header */
+header{padding:26px 0 8px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:42px;height:42px;border-radius:12px;background:var(--grad);display:grid;place-items:center;box-shadow:0 8px 24px -6px #7c6bff66}
+.logo svg{width:24px;height:24px}
+.brand b{font-family:"Space Grotesk";font-size:19px;letter-spacing:.2px}
+.brand span{display:block;font-size:12px;color:var(--text-faint);font-weight:500}
+
+/* Hero */
+.hero{padding:40px 0 26px;text-align:center}
+.hero .pill{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--accent);
+  background:#38e2ff14;border:1px solid #38e2ff33;padding:6px 14px;border-radius:999px;margin-bottom:18px}
+.hero .pill i{width:7px;height:7px;border-radius:50%;background:var(--accent-3);box-shadow:0 0 10px var(--accent-3)}
+.hero h1{font-size:clamp(30px,5vw,52px);font-weight:700;letter-spacing:-.5px}
+.hero h1 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{max-width:620px;margin:16px auto 0;color:var(--text-dim);font-size:clamp(15px,2vw,17px)}
+
+/* Cards / layout */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);
+  backdrop-filter:blur(14px);box-shadow:var(--shadow)}
+.grid{display:grid;gap:20px}
+@media(min-width:900px){.cols{grid-template-columns:1fr 1fr}}
+section{margin:22px 0}
+.sec-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.sec-head .n{width:26px;height:26px;border-radius:8px;background:#7c6bff1f;border:1px solid #7c6bff44;
+  display:grid;place-items:center;font-family:"Space Grotesk";font-weight:700;font-size:13px;color:var(--accent-2)}
+.sec-head h2{font-size:19px;font-weight:600}
+
+/* Dropzone */
+.drop{padding:34px 22px;text-align:center;border:1.5px dashed var(--border-strong);border-radius:var(--r-lg);
+  background:#0e131e80;cursor:pointer;transition:border-color .2s,background .2s,transform .2s}
+.drop:hover,.drop:focus-visible{border-color:var(--accent);background:#0f1626}
+.drop.drag{border-color:var(--accent);background:#10203099;transform:scale(1.005)}
+.drop.has{border-style:solid;border-color:var(--accent-3);background:#0e1c1c}
+.drop .ico{width:56px;height:56px;margin:0 auto 12px;border-radius:16px;background:#131c2e;display:grid;place-items:center;border:1px solid var(--border)}
+.drop .ico svg{width:28px;height:28px;stroke:var(--accent)}
+.drop h3{font-size:17px;font-weight:600;margin-bottom:4px}
+.drop small{color:var(--text-faint);font-size:12.5px}
+.drop .fname{color:var(--accent-3);font-weight:600;font-size:14px;word-break:break-all}
+
+/* Method cards */
+.methods{display:grid;gap:12px}
+@media(min-width:560px){.methods{grid-template-columns:1fr 1fr}}
+.method{position:relative;text-align:left;padding:16px;border-radius:var(--r);cursor:pointer;
+  background:var(--surface-solid);border:1px solid var(--border);transition:border-color .18s,transform .18s,background .18s}
+.method:hover{border-color:var(--border-strong);transform:translateY(-2px)}
+.method.sel{border-color:var(--accent);background:#0e1b28;box-shadow:0 0 0 1px var(--accent) inset}
+.method .top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
+.method .top b{font-family:"Space Grotesk";font-size:15px}
+.method .badge{font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;padding:3px 8px;border-radius:999px;
+  background:#7c6bff22;color:var(--accent-2);border:1px solid #7c6bff44;white-space:nowrap}
+.method[data-key="ml"] .badge{background:var(--grad);color:#05121b;border:none}
+.method p{margin:0;font-size:12.8px;color:var(--text-dim)}
+.method .check{position:absolute;top:14px;right:14px;opacity:0;transition:.15s}
+.method.sel .check{opacity:1}
+
+/* Controls */
+.ctrl{margin:0 0 16px}
+.ctrl .lbl{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
+.ctrl .lbl span{font-size:13.5px;font-weight:500;color:var(--text-dim)}
+.ctrl .lbl b{font-family:"Space Grotesk";font-size:14px;color:var(--text)}
+input[type=range]{-webkit-appearance:none;width:100%;height:6px;border-radius:99px;
+  background:linear-gradient(90deg,var(--accent),var(--accent-2));outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;
+  background:#fff;border:3px solid var(--accent);box-shadow:0 2px 8px #0008;cursor:pointer;transition:transform .12s}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.15)}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid var(--accent);cursor:pointer}
+.hint{font-size:11.5px;color:var(--text-faint);margin-top:5px}
+.adv-toggle{display:flex;align-items:center;gap:8px;background:none;border:none;color:var(--accent);font:inherit;
+  font-size:13.5px;font-weight:600;cursor:pointer;padding:6px 0}
+.adv-toggle svg{width:16px;height:16px;transition:transform .2s}
+.adv-toggle.open svg{transform:rotate(180deg)}
+.adv{overflow:hidden;max-height:0;transition:max-height .35s ease}
+.adv.open{max-height:520px}
+
+/* CTA */
+.cta{width:100%;padding:16px;border:none;border-radius:var(--r);font:inherit;font-weight:700;font-size:16px;
+  font-family:"Space Grotesk";color:#05121b;background:var(--grad);cursor:pointer;letter-spacing:.3px;
+  box-shadow:0 14px 34px -12px #38e2ff88;transition:transform .15s,box-shadow .15s,opacity .2s;
+  display:flex;align-items:center;justify-content:center;gap:10px}
+.cta:hover{transform:translateY(-2px);box-shadow:0 18px 40px -12px #7c6bffaa}
+.cta:active{transform:translateY(0)}
+.cta:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.cta svg{width:20px;height:20px}
+
+/* Progress */
+.progress-card{padding:26px}
+.pbar-track{height:10px;border-radius:99px;background:#0c1220;overflow:hidden;border:1px solid var(--border)}
+.pbar{height:100%;width:0;border-radius:99px;background:var(--grad);transition:width .4s ease;box-shadow:0 0 16px #38e2ff88}
+.pstage{display:flex;justify-content:space-between;align-items:center;margin-top:14px}
+.pstage .s{display:flex;align-items:center;gap:11px;font-weight:600;font-size:15px}
+.spin{width:18px;height:18px;border-radius:50%;border:2.5px solid #ffffff22;border-top-color:var(--accent);animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.pstage .pct{font-family:"Space Grotesk";font-weight:700;font-size:20px;color:var(--accent)}
+.steps{display:flex;flex-wrap:wrap;gap:6px;margin-top:16px}
+.step{font-size:11px;padding:4px 9px;border-radius:99px;background:#0c1220;color:var(--text-faint);border:1px solid var(--border)}
+.step.on{color:var(--accent-3);border-color:#31f6c955;background:#0e1c1c}
+.step.done{color:var(--text-dim)}
+
+/* Compare */
+.compare{position:relative;width:100%;aspect-ratio:16/9;border-radius:var(--r);overflow:hidden;background:#000;
+  user-select:none;touch-action:none;border:1px solid var(--border)}
+.compare video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.compare .after-wrap{position:absolute;inset:0;overflow:hidden;width:50%}
+.compare .after-wrap video{width:100vw;max-width:1160px}
+.divider{position:absolute;top:0;bottom:0;left:50%;width:2px;background:var(--grad);transform:translateX(-1px);z-index:3;box-shadow:0 0 12px #38e2ffaa}
+.divider .knob{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:42px;height:42px;border-radius:50%;
+  background:#0c1220;border:2px solid var(--accent);display:grid;place-items:center;cursor:ew-resize;box-shadow:0 6px 18px #000a}
+.divider .knob svg{width:20px;height:20px;stroke:var(--accent)}
+.tag{position:absolute;top:12px;z-index:4;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
+  padding:5px 11px;border-radius:99px;backdrop-filter:blur(6px)}
+.tag.orig{left:12px;background:#ff5f6d22;color:#ff9aa2;border:1px solid #ff5f6d55}
+.tag.stab{right:12px;background:#31f6c922;color:var(--accent-3);border:1px solid #31f6c955}
+.play-row{display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap}
+.pbtn{display:flex;align-items:center;gap:8px;padding:10px 18px;border-radius:99px;border:1px solid var(--border-strong);
+  background:var(--surface-solid);color:var(--text);font:inherit;font-weight:600;font-size:14px;cursor:pointer;transition:.15s}
+.pbtn:hover{border-color:var(--accent)}
+.pbtn svg{width:16px;height:16px}
+.play-row .note{font-size:12px;color:var(--text-faint)}
+
+/* Metrics */
+.metrics{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.metric{padding:18px;border-radius:var(--r);background:var(--surface-solid);border:1px solid var(--border);position:relative;overflow:hidden}
+.metric::before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--grad)}
+.metric .k{font-size:12px;color:var(--text-faint);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.metric .v{font-family:"Space Grotesk";font-weight:700;font-size:30px;margin:6px 0 2px}
+.metric .sub{font-size:12px;color:var(--text-dim)}
+.metric .imp{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:700;margin-top:8px;
+  padding:3px 9px;border-radius:99px;background:#31f6c918;color:var(--success);border:1px solid #31f6c944}
+.metric .imp svg{width:12px;height:12px}
+.eng{display:grid;gap:10px;grid-template-columns:repeat(3,1fr);margin-top:14px}
+.eng div{padding:12px;border-radius:var(--r-sm);background:#0c1220;border:1px solid var(--border);text-align:center}
+.eng .k{font-size:11px;color:var(--text-faint)}
+.eng .v{font-family:"Space Grotesk";font-weight:700;font-size:19px;margin-top:3px}
+
+.hidden{display:none!important}
+.err{padding:16px;border-radius:var(--r);background:#ff5f6d18;border:1px solid #ff5f6d55;color:#ffb3b8;font-size:14px}
+footer{padding:36px 0;text-align:center;color:var(--text-faint);font-size:12.5px}
+footer b{color:var(--text-dim)}
+::selection{background:#7c6bff55}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.001s!important;transition-duration:.001s!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="brand">
+    <div class="logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#05121b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="6" width="14" height="12" rx="2"/><path d="M17 10l4-2v8l-4-2"/>
+      </svg>
+    </div>
+    <div><b>Estabilizador ML</b><span>Interpolación + Aprendizaje Automático</span></div>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="pill"><i></i> Visión por computadora · Trabajo de Investigación LUZ</div>
+  <h1>Estabiliza tu video con <em>inteligencia artificial</em></h1>
+  <p>Sube un video inestable y el sistema elimina el movimiento no deseado combinando estimación de movimiento por malla, interpolación y una red neuronal que predice los pesos adaptativos.</p>
+</div>
+
+<!-- 1. Upload -->
+<section>
+  <div class="sec-head"><span class="n">1</span><h2>Sube tu video</h2></div>
+  <div class="card" style="padding:18px">
+    <div id="drop" class="drop" tabindex="0" role="button" aria-label="Seleccionar video para estabilizar">
+      <div class="ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0L7 9m5-5l5 5"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+      </div>
+      <div id="dropTxt">
+        <h3>Arrastra un video aquí</h3>
+        <small>o haz clic para elegir · MP4, AVI, MOV, M4V</small>
+      </div>
+    </div>
+    <input id="file" type="file" accept="video/*" class="hidden">
+  </div>
+</section>
+
+<!-- 2. Method -->
+<section>
+  <div class="sec-head"><span class="n">2</span><h2>Elige el método de estabilización</h2></div>
+  <div id="methods" class="methods"></div>
+</section>
+
+<!-- 3. Params + CTA -->
+<section class="grid cols">
+  <div class="card" style="padding:22px">
+    <div class="sec-head"><span class="n">3</span><h2>Ajustes</h2></div>
+
+    <div class="ctrl">
+      <div class="lbl"><span>Velocidad de procesado</span><b id="scaleV">Rápido (0.5×)</b></div>
+      <input id="scale" type="range" min="0.25" max="1" step="0.25" value="0.5">
+      <div class="hint">Menor resolución = mucho más rápido. 1× para máxima calidad.</div>
+    </div>
+
+    <div class="ctrl">
+      <div class="lbl"><span>Límite de fotogramas</span><b id="framesV">40</b></div>
+      <input id="frames" type="range" min="0" max="150" step="10" value="40">
+      <div class="hint">Para previsualizar rápido. 0 = video completo.</div>
+    </div>
+
+    <button id="advBtn" class="adv-toggle" type="button" aria-expanded="false">
+      Ajustes avanzados
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <div id="adv" class="adv">
+      <div style="padding-top:14px">
+        <div class="ctrl">
+          <div class="lbl"><span>Densidad de malla</span><b id="meshV">16 × 16</b></div>
+          <input id="mesh" type="range" min="4" max="28" step="2" value="16">
+          <div class="hint">Más densa = corrige movimiento más local, pero más lenta.</div>
+        </div>
+        <div class="ctrl">
+          <div class="lbl"><span>Suavizado temporal</span><b id="smoothV">10</b></div>
+          <input id="smooth" type="range" min="1" max="20" step="1" value="10">
+          <div class="hint">Fotogramas vecinos considerados al suavizar.</div>
+        </div>
+        <div class="ctrl">
+          <div class="lbl"><span>Iteraciones (Jacobi)</span><b id="iterV">80</b></div>
+          <input id="iter" type="range" min="20" max="200" step="10" value="80">
+          <div class="hint">Iteraciones de optimización de la función de energía.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="padding:22px;display:flex;flex-direction:column">
+    <div class="sec-head"><span class="n">4</span><h2>Procesar</h2></div>
+    <p style="color:var(--text-dim);font-size:14px;margin:0 0 auto">
+      Revisa que tengas un video cargado y el método elegido. El procesado se ejecuta
+      en tu máquina; verás el progreso en vivo y una comparación antes/después con métricas
+      de calidad (MSE, PSNR, SSIM).
+    </p>
+    <div id="err" class="err hidden" style="margin-bottom:14px"></div>
+    <button id="go" class="cta" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l14 9-14 9V3z"/></svg>
+      Estabilizar video
+    </button>
+  </div>
+</section>
+
+<!-- Progress -->
+<section id="progressSec" class="hidden">
+  <div class="card progress-card">
+    <div class="pbar-track"><div id="pbar" class="pbar"></div></div>
+    <div class="pstage">
+      <div class="s"><span class="spin" id="spin"></span><span id="stageLbl">Iniciando…</span></div>
+      <div class="pct mono" id="pct">0%</div>
+    </div>
+    <div class="steps" id="steps"></div>
+  </div>
+</section>
+
+<!-- Results -->
+<section id="resultSec" class="hidden">
+  <div class="sec-head"><span class="n">✓</span><h2>Resultado</h2></div>
+  <div class="card" style="padding:22px">
+    <div id="compare" class="compare">
+      <span class="tag orig">Original</span>
+      <span class="tag stab">Estabilizado</span>
+      <video id="vOrig" muted loop playsinline></video>
+      <div class="after-wrap" id="afterWrap"><video id="vStab" muted loop playsinline></video></div>
+      <div class="divider" id="divider"><div class="knob" id="knob">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7l-4 5 4 5M16 7l4 5-4 5"/></svg>
+      </div></div>
+    </div>
+    <div class="play-row">
+      <button id="playBtn" class="pbtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l14 9-14 9V3z"/></svg>
+        Reproducir
+      </button>
+      <span class="note">Arrastra el círculo para comparar. Ambos videos se reproducen sincronizados.</span>
+    </div>
+
+    <div style="margin-top:22px">
+      <h3 style="font-size:16px;margin-bottom:12px">Calidad de estabilización (entre fotogramas)</h3>
+      <div class="metrics" id="metrics"></div>
+    </div>
+    <div style="margin-top:20px">
+      <h3 style="font-size:16px;margin-bottom:6px">Métricas del motor <span style="font-weight:400;font-size:13px;color:var(--text-faint)">· según el paper original</span></h3>
+      <div class="eng" id="eng"></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <b>Sistema de estabilización de imágenes en dispositivos móviles</b><br>
+  Interpolación + Aprendizaje Automático · Daniel Alejandro Silva Rojas · Universidad del Zulia
+</footer>
+
+</div>
+
+<script>
+const $=(s)=>document.querySelector(s);
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let file=null, method='ml';
+
+/* ---- Methods ---- */
+const FALLBACK={
+  ml:{name:'Aprendizaje automático',description:'Pesos adaptativos predichos por una red neuronal entrenada.',badge:'IA'},
+  original:{name:'Modelo lineal (paper)',description:'Modelo lineal clásico del paper original. Equilibrado.',badge:'Clásico'},
+  constant_high:{name:'Estabilidad máxima',description:'Suavizado agresivo. Mayor estabilidad, más recorte.',badge:'Fuerte'},
+  constant_low:{name:'Recorte mínimo',description:'Suavizado suave. Menos recorte, ligero temblor.',badge:'Suave'},
+};
+const ORDER=['ml','original','constant_high','constant_low'];
+function renderMethods(data){
+  const box=$('#methods');box.innerHTML='';
+  ORDER.forEach(key=>{
+    const m=data[key]; if(!m)return;
+    const el=document.createElement('button');
+    el.className='method'+(key===method?' sel':'');
+    el.dataset.key=key; el.type='button';
+    el.setAttribute('aria-pressed', key===method);
+    el.innerHTML=`
+      <span class="check"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#38e2ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+      <div class="top"><b>${m.name}</b><span class="badge">${m.badge}</span></div>
+      <p>${m.description}</p>`;
+    el.onclick=()=>{method=key;[...box.children].forEach(c=>{c.classList.toggle('sel',c.dataset.key===key);c.setAttribute('aria-pressed',c.dataset.key===key)});};
+    box.appendChild(el);
+  });
+}
+fetch('/api/methods').then(r=>r.json()).then(renderMethods).catch(()=>renderMethods(FALLBACK));
+
+/* ---- Upload ---- */
+const drop=$('#drop'),input=$('#file');
+drop.onclick=()=>input.click();
+drop.onkeydown=(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();input.click();}};
+['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag');}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag');}));
+drop.addEventListener('drop',e=>{if(e.dataTransfer.files[0])setFile(e.dataTransfer.files[0]);});
+input.onchange=()=>{if(input.files[0])setFile(input.files[0]);};
+function setFile(f){
+  if(!f.type.startsWith('video/')){showErr('Ese archivo no es un video.');return;}
+  file=f;hideErr();
+  drop.classList.add('has');
+  $('#dropTxt').innerHTML=`<h3 class="fname">${f.name}</h3><small>${(f.size/1048576).toFixed(1)} MB · listo para procesar</small>`;
+  $('#go').disabled=false;
+}
+
+/* ---- Sliders ---- */
+const bind=(id,out,fn)=>{const el=$(id);const o=$(out);const u=()=>o.textContent=fn(el.value);el.oninput=u;u();};
+bind('#scale','#scaleV',v=>({'0.25':'Muy rápido (0.25×)','0.5':'Rápido (0.5×)','0.75':'Alta (0.75×)','1':'Máxima (1×)'}[v]));
+bind('#frames','#framesV',v=>v==='0'?'Completo':v);
+bind('#mesh','#meshV',v=>`${v} × ${v}`);
+bind('#smooth','#smoothV',v=>v);
+bind('#iter','#iterV',v=>v);
+$('#advBtn').onclick=()=>{const a=$('#adv'),b=$('#advBtn');const open=a.classList.toggle('open');b.classList.toggle('open',open);b.setAttribute('aria-expanded',open);};
+
+/* ---- Errors ---- */
+function showErr(m){const e=$('#err');e.textContent=m;e.classList.remove('hidden');}
+function hideErr(){$('#err').classList.add('hidden');}
+
+/* ---- Run ---- */
+const STEPS=[['reading','Lectura'],['motion','Movimiento'],['optimizing','Optimización'],['warping','Interpolación'],['metrics','Métricas'],['writing','Codificación'],['done','Listo']];
+function renderSteps(active){
+  const box=$('#steps');box.innerHTML='';
+  const ai=STEPS.findIndex(s=>s[0]===active);
+  STEPS.forEach((s,i)=>{const el=document.createElement('span');
+    el.className='step'+(s[0]===active?' on':(i<ai?' done':''));el.textContent=s[1];box.appendChild(el);});
+}
+$('#go').onclick=async()=>{
+  if(!file)return;
+  hideErr();
+  $('#go').disabled=true;
+  $('#resultSec').classList.add('hidden');
+  $('#progressSec').classList.remove('hidden');
+  $('#progressSec').scrollIntoView({behavior:reduce?'auto':'smooth',block:'center'});
+  setProgress('reading','Iniciando…',0.02);
+
+  const fd=new FormData();
+  fd.append('video',file);fd.append('method',method);
+  fd.append('scale',$('#scale').value);
+  fd.append('max_frames',$('#frames').value);
+  fd.append('mesh',$('#mesh').value);
+  fd.append('smoothing',$('#smooth').value);
+  fd.append('iterations',$('#iter').value);
+  let job;
+  try{
+    const r=await fetch('/api/stabilize',{method:'POST',body:fd});
+    if(!r.ok)throw new Error('El servidor rechazó la petición');
+    job=(await r.json()).job_id;
+  }catch(e){fail('No se pudo iniciar: '+e.message);return;}
+
+  const es=new EventSource('/api/progress/'+job);
+  es.onmessage=(ev)=>{
+    const d=JSON.parse(ev.data);
+    if(d.status==='error'){es.close();fail('Ocurrió un error durante el procesado.');return;}
+    if(d.stage)setProgress(d.stage,d.stage_label||'Procesando…',d.progress||0);
+    if(d.status==='done'){es.close();loadResult(job);}
+  };
+  es.onerror=()=>{es.close();pollResult(job);};
+};
+function setProgress(stage,label,frac){
+  $('#pbar').style.width=Math.round(frac*100)+'%';
+  $('#pct').textContent=Math.round(frac*100)+'%';
+  $('#stageLbl').textContent=label;
+  renderSteps(stage);
+}
+function fail(m){$('#spin').style.display='none';showErr(m);$('#go').disabled=false;$('#progressSec').classList.add('hidden');}
+async function pollResult(job){
+  for(let i=0;i<120;i++){await new Promise(r=>setTimeout(r,1000));
+    try{const r=await fetch('/api/result/'+job);const d=await r.json();
+      if(d.status==='done'){loadResult(job,d);return;}
+      if(d.status==='error'){fail('Error en el procesado.');return;}
+      if(d.progress)setProgress(d.stage||'writing','Procesando…',d.progress);
+    }catch(e){}
+  }
+  fail('Tiempo de espera agotado.');
+}
+
+/* ---- Results ---- */
+async function loadResult(job,data){
+  if(!data){data=await(await fetch('/api/result/'+job)).json();}
+  if(data.status!=='done'){fail('El resultado no está disponible.');return;}
+  setProgress('done','Finalizado',1);
+  $('#spin').style.display='none';
+  $('#vOrig').src='/api/video/'+job+'/original';
+  $('#vStab').src='/api/video/'+job+'/stabilized';
+  renderMetrics(data.quality_metrics);
+  renderEngine(data.engine_metrics,data.elapsed_seconds);
+  $('#resultSec').classList.remove('hidden');
+  $('#resultSec').scrollIntoView({behavior:reduce?'auto':'smooth',block:'start'});
+  syncPlay(true);
+  $('#go').disabled=false;
+}
+function countUp(el,to,dec,suffix){
+  if(reduce){el.textContent=to.toFixed(dec)+(suffix||'');return;}
+  const dur=700,t0=performance.now();
+  const step=(t)=>{const p=Math.min(1,(t-t0)/dur);const e=1-Math.pow(1-p,3);
+    el.textContent=(to*e).toFixed(dec)+(suffix||'');if(p<1)requestAnimationFrame(step);};
+  requestAnimationFrame(step);
+}
+function renderMetrics(q){
+  const box=$('#metrics');box.innerHTML='';
+  const arrow='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
+  const defs=[
+    {k:'PSNR',key:'psnr',dec:2,suf:' dB',o:q.original.psnr,s:q.stabilized.psnr,imp:q.improvement.psnr,good:'Mayor es mejor'},
+    {k:'SSIM',key:'ssim',dec:3,suf:'',o:q.original.ssim,s:q.stabilized.ssim,imp:q.improvement.ssim,good:'Cercano a 1 = mejor'},
+    {k:'MSE',key:'mse',dec:1,suf:'',o:q.original.mse,s:q.stabilized.mse,imp:q.improvement.mse,good:'Menor es mejor'},
+  ];
+  defs.forEach(d=>{
+    const el=document.createElement('div');el.className='metric';
+    el.innerHTML=`<div class="k">${d.k}</div><div class="v mono">–</div>
+      <div class="sub">antes ${d.o} · ${d.good}</div>
+      <div class="imp">${arrow} ${d.imp>0?'+':''}${d.imp}%</div>`;
+    box.appendChild(el);
+    countUp(el.querySelector('.v'),d.s,d.dec,d.suf);
+  });
+}
+function renderEngine(e,secs){
+  const box=$('#eng');
+  box.innerHTML=`
+    <div><div class="k">Ratio de recorte</div><div class="v mono">${e.cropping_ratio}</div></div>
+    <div><div class="k">Estabilidad</div><div class="v mono">${e.stability_score}</div></div>
+    <div><div class="k">Tiempo</div><div class="v mono">${secs}s</div></div>`;
+}
+
+/* ---- Compare slider + sync play ---- */
+const compare=$('#compare'),afterWrap=$('#afterWrap'),divider=$('#divider');
+let dragging=false;
+function setSplit(x){
+  const rect=compare.getBoundingClientRect();
+  let p=(x-rect.left)/rect.width;p=Math.max(0,Math.min(1,p));
+  afterWrap.style.width=(p*100)+'%';
+  divider.style.left=(p*100)+'%';
+  $('#vStab').style.width=rect.width+'px';
+}
+const startDrag=()=>dragging=true;
+const endDrag=()=>dragging=false;
+const moveDrag=(e)=>{if(!dragging)return;const x=(e.touches?e.touches[0].clientX:e.clientX);setSplit(x);};
+$('#knob').addEventListener('mousedown',startDrag);
+$('#knob').addEventListener('touchstart',startDrag,{passive:true});
+compare.addEventListener('mousedown',e=>{startDrag();setSplit(e.clientX);});
+window.addEventListener('mousemove',moveDrag);
+window.addEventListener('touchmove',moveDrag,{passive:true});
+window.addEventListener('mouseup',endDrag);
+window.addEventListener('touchend',endDrag);
+window.addEventListener('resize',()=>{const r=compare.getBoundingClientRect();$('#vStab').style.width=r.width+'px';});
+
+let playing=false;
+function syncPlay(forcePlay){
+  const o=$('#vOrig'),s=$('#vStab');
+  playing=forcePlay!==undefined?forcePlay:!playing;
+  if(playing){s.currentTime=o.currentTime=0;o.play();s.play();setPlayBtn(true);}
+  else{o.pause();s.pause();setPlayBtn(false);}
+}
+function setPlayBtn(p){
+  $('#playBtn').innerHTML=p
+    ?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg> Pausar'
+    :'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l14 9-14 9V3z"/></svg> Reproducir';
+}
+$('#playBtn').onclick=()=>syncPlay();
+$('#vOrig').addEventListener('loadedmetadata',()=>{const r=compare.getBoundingClientRect();$('#vStab').style.width=r.width+'px';setSplit(r.left+r.width/2);});
+</script>
+</body>
+</html>

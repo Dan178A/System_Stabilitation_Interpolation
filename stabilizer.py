@@ -26,6 +26,9 @@ class Stabilizer:
     ADAPTIVE_WEIGHTS_DEFINITION_FLIPPED = 1
     ADAPTIVE_WEIGHTS_DEFINITION_CONSTANT_HIGH = 2
     ADAPTIVE_WEIGHTS_DEFINITION_CONSTANT_LOW = 3
+    # Nuevo: los pesos adaptativos se predicen con un modelo de aprendizaje automatico
+    # entrenado sobre descriptores de movimiento (lo prometido en la tesis).
+    ADAPTIVE_WEIGHTS_DEFINITION_ML = 4
 
 
     # Los valores constantes de los pesos adaptativos altos y bajos.
@@ -39,7 +42,10 @@ class Stabilizer:
         homography_min_number_corresponding_features=4,
         temporal_smoothing_radius=10, optimization_num_iterations=100,
         color_outside_image_area_bgr=(0, 0, 255),
-        visualize=False):
+        visualize=False,
+        processing_scale=1.0, max_frames=None,
+        ml_model_path=None, progress_callback=None,
+        output_fourcc=None):
         '''
         Constructor.
 
@@ -89,6 +95,26 @@ class Stabilizer:
         self.color_outside_image_area_bgr = color_outside_image_area_bgr
         self.visualize = visualize
 
+        # --- Optimizacion de rendimiento ---
+        # processing_scale < 1.0 procesa todo el pipeline a resolucion reducida, de forma
+        # internamente consistente (malla, homografias, warping y recorte), acelerando el
+        # procesado ~1/scale^2. max_frames limita el numero de fotogramas (previsualizacion).
+        self.processing_scale = float(processing_scale)
+        self.max_frames = max_frames
+
+        # --- Aprendizaje automatico ---
+        # Ruta al modelo entrenado que predice los pesos adaptativos. Carga perezosa.
+        self.ml_model_path = ml_model_path
+        self._ml_model = None
+
+        # --- Reporte de progreso ---
+        # progress_callback(stage:str, fraction:float) usado por la interfaz web.
+        self.progress_callback = progress_callback
+
+        # Codec de salida opcional (entero fourcc de cv2.VideoWriter_fourcc). Si es None se
+        # usa el codec del video de origen. La interfaz web fuerza uno compatible (mp4v).
+        self.output_fourcc = output_fourcc
+
         self.feature_detector = cv2.FastFeatureDetector_create()
 
 
@@ -126,24 +152,29 @@ class Stabilizer:
             stability scores.
         '''
 
-        if not (adaptive_weights_definition == Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_ORIGINAL or
-                adaptive_weights_definition == Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_FLIPPED or
-                adaptive_weights_definition == Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_CONSTANT_HIGH or
-                adaptive_weights_definition == Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_CONSTANT_LOW):
+        valid_definitions = (
+            Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_ORIGINAL,
+            Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_FLIPPED,
+            Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_CONSTANT_HIGH,
+            Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_CONSTANT_LOW,
+            Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_ML,
+        )
+        if adaptive_weights_definition not in valid_definitions:
             raise ValueError(
-                'Invalid value for `adaptive_weights_definition`. Expecting value of '
-                '`Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_ORIGINAL`, '
-                '`Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_FLIPPED`, '
-                '`Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_CONSTANT_HIGH`, or'
-                '`Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_CONSTANT_LOW`.'
+                'Invalid value for `adaptive_weights_definition`. Expecting one of '
+                '`ORIGINAL`, `FLIPPED`, `CONSTANT_HIGH`, `CONSTANT_LOW`, or `ML`.'
             )
 
+        self._report_progress('reading', 0.0)
         unstabilized_frames, num_frames, frames_per_second, codec = self._get_unstabilized_frames_and_video_features(input_path)
+        self._report_progress('motion', 0.15)
         vertex_unstabilized_displacements_by_frame_index, homographies = self._get_unstabilized_vertex_displacements_and_homographies(num_frames, unstabilized_frames)
+        self._report_progress('optimizing', 0.5)
         vertex_stabilized_displacements_by_frame_index = self._get_stabilized_vertex_displacements(
             num_frames, unstabilized_frames, adaptive_weights_definition,
             vertex_unstabilized_displacements_by_frame_index, homographies
         )
+        self._report_progress('warping', 0.65)
         stabilized_frames, crop_boundaries = self._get_stabilized_frames_and_crop_boundaries(
             num_frames, unstabilized_frames,
             vertex_unstabilized_displacements_by_frame_index,
@@ -151,15 +182,27 @@ class Stabilizer:
         )
         cropped_frames = self._crop_frames(stabilized_frames, crop_boundaries)
 
+        self._report_progress('metrics', 0.9)
         cropping_ratio, distortion_score = self._compute_cropping_ratio_and_distortion_score(num_frames, unstabilized_frames, cropped_frames)
         stability_score = self._compute_stability_score(num_frames, vertex_stabilized_displacements_by_frame_index)
 
+        self._report_progress('writing', 0.95)
         self._write_stabilized_video(output_path, num_frames, frames_per_second, codec, cropped_frames)
 
         if self.visualize:
             self._display_unstablilized_and_cropped_video_loop(num_frames, frames_per_second, unstabilized_frames, cropped_frames)
 
+        self._report_progress('done', 1.0)
         return (cropping_ratio, distortion_score, stability_score)
+
+
+    def _report_progress(self, stage, fraction):
+        '''Notifica el avance a la interfaz si hay un callback registrado.'''
+        if self.progress_callback is not None:
+            try:
+                self.progress_callback(stage, float(fraction))
+            except Exception:
+                pass
 
 
     def _get_unstabilized_frames_and_video_features(self, input_path) -> tuple[cv2.typing.MatLike, int, float, int]:
@@ -188,6 +231,12 @@ class Stabilizer:
         frames_per_second = unstabilized_video.get(cv2.CAP_PROP_FPS)
         codec = int(unstabilized_video.get(cv2.CAP_PROP_FOURCC))
 
+        # Optimizacion: limitar numero de fotogramas (previsualizacion rapida).
+        if self.max_frames is not None:
+            num_frames = min(num_frames, int(self.max_frames))
+
+        scale = self.processing_scale
+
         with tqdm.trange(num_frames) as t:
             t.set_description(f'Reading video from <{input_path}>')
 
@@ -198,6 +247,12 @@ class Stabilizer:
                     raise IOError(
                         f'Video at <{input_path}> did not have frame {frame_index} of '
                         f'{num_frames} (indexed from 0).'
+                    )
+                # Optimizacion: procesar el pipeline a resolucion reducida.
+                if scale != 1.0:
+                    unstabilized_frame = cv2.resize(
+                        unstabilized_frame, None, fx=scale, fy=scale,
+                        interpolation=cv2.INTER_AREA
                     )
                 unstabilized_frames.append(unstabilized_frame)
 
@@ -771,7 +826,10 @@ class Stabilizer:
 
         # Establezca coeficientes en 0 para T, r, r;Ver https://stackoverflow.com/a/36247680
         off_diagonal_mask = np.zeros(off_diagonal_coefficients.shape)
-        for i in range(-self.temporal_smoothing_radius, self.temporal_smoothing_radius + 1):
+        # Robustez: el radio de suavizado no puede exceder num_frames - 1 (no existen
+        # diagonales mas alla). Evita fallos con clips cortos o el modo previsualizacion.
+        effective_radius = min(self.temporal_smoothing_radius, num_frames - 1)
+        for i in range(-effective_radius, effective_radius + 1):
             off_diagonal_mask += np.diag(np.ones(num_frames - abs(i)), i)
         off_diagonal_coefficients = np.where(off_diagonal_mask, off_diagonal_coefficients, 0)
 
@@ -804,36 +862,104 @@ class Stabilizer:
             In the paper, adaptive_weights[t] is denoted as \lambda_{t}.
         '''
 
-        if adaptive_weights_definition == Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_ORIGINAL or adaptive_weights_definition == Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_FLIPPED:
-            # Los pesos adaptativos se determinan conectando los valores propios de cada homografía
-            # componente afín en un modelo lineal
-            homography_affine_components = homographies.copy()
-            homography_affine_components[:, 2, :] = [0, 0, 1]
-            adaptive_weights = np.empty((num_frames,))
+        if adaptive_weights_definition in (
+            Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_ORIGINAL,
+            Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_FLIPPED,
+            Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_ML,
+        ):
+            # Descriptores de movimiento por fotograma, vectorizados (optimizacion frente
+            # al bucle frame a frame original).
+            translational_element, affine_component = self._get_motion_descriptors(
+                homographies, frame_width, frame_height
+            )
 
-            for frame_index in range(num_frames):
-                homography = homography_affine_components[frame_index]
-                sorted_eigenvalue_magnitudes = np.sort(np.abs(np.linalg.eigvals(homography)))
-
-                translational_element = math.sqrt((homography[0, 2] / frame_width) ** 2 + (homography[1, 2] / frame_height) ** 2)
-                affine_component = sorted_eigenvalue_magnitudes[-2] / sorted_eigenvalue_magnitudes[-1]
-
-                adaptive_weight_candidate_1 = -1.93 * translational_element + 0.95
-
-                if adaptive_weights_definition == Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_ORIGINAL:
-                    adaptive_weight_candidate_2 = 5.83 * affine_component + 4.88
-                else:  # Adaptive_weaws_definition_flipped
-                    adaptive_weight_candidate_2 = 5.83 * affine_component - 4.88
-
-                adaptive_weights[frame_index] = max(
-                    min(adaptive_weight_candidate_1, adaptive_weight_candidate_2), 0
+            if adaptive_weights_definition == Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_ML:
+                # Los pesos adaptativos se PREDICEN con el modelo de aprendizaje automatico.
+                adaptive_weights = self._predict_adaptive_weights_ml(
+                    translational_element, affine_component
                 )
+            else:
+                candidate_1 = -1.93 * translational_element + 0.95
+                if adaptive_weights_definition == Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_ORIGINAL:
+                    candidate_2 = 5.83 * affine_component + 4.88
+                else:  # FLIPPED
+                    candidate_2 = 5.83 * affine_component - 4.88
+                adaptive_weights = np.maximum(np.minimum(candidate_1, candidate_2), 0)
         elif adaptive_weights_definition == Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_CONSTANT_HIGH:
             adaptive_weights = np.full((num_frames,), self.ADAPTIVE_WEIGHTS_DEFINITION_CONSTANT_HIGH_VALUE)
         elif adaptive_weights_definition == Stabilizer.ADAPTIVE_WEIGHTS_DEFINITION_CONSTANT_LOW:
             adaptive_weights = np.full((num_frames,), self.ADAPTIVE_WEIGHTS_DEFINITION_CONSTANT_LOW_VALUE)
 
         return adaptive_weights
+
+
+    def _get_motion_descriptors(self, homographies, frame_width, frame_height):
+        '''
+        Extrae de forma vectorizada dos descriptores de movimiento por fotograma a partir
+        de la parte afin de cada homografia: la magnitud de la traslacion normalizada y la
+        razon entre los dos mayores valores propios (deformacion afin).
+        Devuelve dos arrays de shape (num_frames,).
+        '''
+        affine = homographies.copy()
+        affine[:, 2, :] = [0, 0, 1]
+        eigenvalue_magnitudes = np.sort(np.abs(np.linalg.eigvals(affine)), axis=1)
+        affine_component = eigenvalue_magnitudes[:, -2] / eigenvalue_magnitudes[:, -1]
+        translational_element = np.sqrt(
+            (affine[:, 0, 2] / frame_width) ** 2 + (affine[:, 1, 2] / frame_height) ** 2
+        )
+        return translational_element, affine_component
+
+
+    def _predict_adaptive_weights_ml(self, translational_element, affine_component):
+        '''
+        Predice el peso adaptativo lambda_t de cada fotograma con el modelo de aprendizaje
+        automatico entrenado (modulo ml/). Si el modelo no esta disponible, recae de forma
+        segura en el modelo lineal original, de modo que el sistema nunca falla.
+        '''
+        if self._ml_model is None:
+            self._ml_model = self._load_ml_model()
+
+        features = np.column_stack([
+            translational_element,
+            affine_component,
+            translational_element * affine_component,
+            translational_element ** 2,
+        ])
+
+        if self._ml_model is None:
+            candidate_1 = -1.93 * translational_element + 0.95
+            candidate_2 = 5.83 * affine_component + 4.88
+            return np.maximum(np.minimum(candidate_1, candidate_2), 0)
+
+        predictions = self._ml_model.predict(features)
+        return np.maximum(predictions, 0.0)
+
+
+    def _load_ml_model(self):
+        '''
+        Carga el modelo de pesos adaptativos entrenado. Devuelve None (sin excepcion) si no
+        se encuentra o no puede cargarse, para permitir la recaida al modelo lineal.
+        '''
+        import os
+        import pickle
+
+        model_path = self.ml_model_path
+        if model_path is None:
+            model_path = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                'ml', 'adaptive_weights_model.pkl'
+            )
+
+        if not os.path.exists(model_path):
+            print(f'[ML] Modelo no encontrado en <{model_path}>. Usando modelo lineal original.')
+            return None
+
+        try:
+            with open(model_path, 'rb') as model_file:
+                return pickle.load(model_file)
+        except Exception as error:
+            print(f'[ML] No se pudo cargar el modelo (<{error}>). Usando modelo lineal original.')
+            return None
 
 
     def _get_jacobi_method_output(self, off_diagonal_coefficients:np.ndarray, on_diagonal_coefficients:np.ndarray, x_start, b):
@@ -1302,9 +1428,10 @@ class Stabilizer:
 
         # adaptado de https://learnopencv.com/read-write-and-display-a-video-using-opencv-cpp-python/
         frame_height, frame_width = stabilized_frames[0].shape[:2]
+        effective_codec = self.output_fourcc if self.output_fourcc is not None else codec
         video = cv2.VideoWriter(
             output_path,
-            codec,
+            effective_codec,
             frames_per_second,
             (frame_width, frame_height)
         )
