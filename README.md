@@ -5,6 +5,10 @@ movimiento por malla, interpolación y **aprendizaje automático**, con una **in
 moderna** para subir un video, elegir el método, ver el progreso en vivo y comparar el
 resultado antes/después con métricas de calidad.
 
+![Interfaz del estabilizador: rail de control a la izquierda, comparación antes/después con división arrastrable y tabla de métricas a la derecha](assets/interfaz.png)
+
+*`video-10.m4v` estabilizado con pesos adaptativos predichos por la red neuronal, a resolución completa: PSNR +32.2 %, SSIM +38 %, MSE −68.9 %, conservando el 78 % del encuadre.*
+
 > Trabajo de Investigación — Licenciatura en Computación, Universidad del Zulia.
 > Autor: Daniel Alejandro Silva Rojas.
 
@@ -34,6 +38,27 @@ aportes nuevos:
    trayectoria estabilizada, mapeando los píxeles con interpolación.
 4. **Recorte y redimensionamiento:** se recortan los bordes inestables y se reescala al
    tamaño original.
+
+---
+
+## La interfaz
+
+La aplicación es una herramienta de dos paneles, no una página de presentación.
+
+- **Rail de control (izquierda).** Fuente, método de pesos adaptativos, parámetros de
+  previsualización y, tras el disclosure, los del motor (densidad de malla, ventana de
+  suavizado, iteraciones de Jacobi). Tiene scroll propio, así que no se va de pantalla
+  mientras miras el resultado: puedes cambiar de método y volver a ejecutar sin desplazarte.
+- **Escenario (derecha).** Un único rectángulo que atraviesa tres estados: vacío con el
+  esquema del método, procesado con el porcentaje y las siete etapas del motor, y
+  comparación con división arrastrable. Debajo, la tabla antes / después / mejora y las
+  métricas del motor.
+
+La división de la comparación es un `slider` accesible: se arrastra con el ratón o el dedo,
+pero también responde a ← → (±2 %), Shift + ← → (±10 %) y Home / End.
+
+El sistema visual completo —tokens de color, tipografía, cobertura de estados, reglas de
+accesibilidad y comportamiento responsive— está documentado en [`DESIGN.md`](DESIGN.md).
 
 ---
 
@@ -137,6 +162,7 @@ estabilidad.
 stabilizer.py                     Motor de estabilización (clase Stabilizer)
 run.py                            Lanzador de la aplicación web
 requirements.txt                  Dependencias
+DESIGN.md                         Sistema visual de la interfaz web
 ml/
   train_adaptive_weights.py       Entrenamiento del modelo de pesos adaptativos
   adaptive_weights_model.pkl      Modelo entrenado (se genera al entrenar)
@@ -144,8 +170,9 @@ backend/
   app.py                          API FastAPI (upload, progreso SSE, resultados, video)
   metrics.py                      Cálculo de MSE / RMSE / PSNR / SSIM
 frontend/
-  index.html                      Interfaz web (subida, ajustes, comparación, métricas)
+  index.html                      Interfaz web de dos paneles (archivo único)
 videos/                           Videos de demostración
+assets/                           Imágenes de la documentación
 ```
 
 ## API HTTP
